@@ -21,7 +21,7 @@ state    real    cg_flashrate      ij     misc    1   -   r     "cg_flashrate"  
 # Mandatory inputs for all options
 #
 rconfig  integer    lightning_option         namelist,physics   max_domains    0      h    "lightning_option"          "Lightning flash parameterization"       ""
-rconfig  real       lightning_time_step      namelist,physics   max_domains    0.     -    "lightning_dt"              ""                                       "s"
+rconfig  real       lightning_dt             namelist,physics   max_domains    0.     -    "lightning_dt"              ""                                       "s"
 rconfig  real       lightning_start_seconds  namelist,physics   max_domains    0.     -    "lightning_start_seconds"   ""                                       "s"
 rconfig  real       flashrate_factor         namelist,physics   max_domains    1.0    h    "flashrate_factor"          "Tuning factor"                          ""
 
@@ -64,6 +64,6 @@ rconfig  real       ltng_temp_lower          namelist,physics   max_domains    -
 #                               21-29:  Qualitative indices (?)
 #                               100+:   Experimental
 #
-package	nolightning         lightning_option==0            -       -
+package	                    lightning_option==0            -       -
 package	ltng_crm_PR92w      lightning_option==1            -       state:cloudflash_total,cloudflash_rate,groundflash_total,groundflash_rate
 package	ltng_cpm_PR92z      lightning_option==11           -       state:cloudflash_total,cloudflash_rate,groundflash_total,groundflash_rate
