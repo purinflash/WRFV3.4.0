@@ -1,0 +1,69 @@
+#
+#  registry.lightning
+#
+#  Included by Registry.EM & Registry.EM_CHEM
+#
+#  Contains state variables and namelist options for lightning parameterization.
+#
+#
+
+
+#
+# Mandatory outputs for all options producing flash counts/rates or intended to be used by LNOx param
+#
+state    real    ic_flashcount     ij     misc    1   -   rh    "ic_flashcount"      "Accumulated IC flash count"     "#"
+state    real    ic_flashrate      ij     misc    1   -   r     "ic_flashrate"       "IC flash rate"                  "#/s"
+state    real    cg_flashcount     ij     misc    1   -   rh    "cg_flashcount"      "Accumulated CG flash count"     "#"
+state    real    cg_flashrate      ij     misc    1   -   r     "cg_flashrate"       "CG flash rate"                  "#/s"
+
+
+#
+# Mandatory inputs for all options
+#
+rconfig  integer    lightning_option         namelist,physics   max_domains    0      h    "lightning_option"          "Lightning flash parameterization"       ""
+rconfig  real       lightning_time_step      namelist,physics   max_domains    0.     -    "lightning_dt"              ""                                       "s"
+rconfig  real       lightning_start_seconds  namelist,physics   max_domains    0.     -    "lightning_start_seconds"   ""                                       "s"
+rconfig  real       flashrate_factor         namelist,physics   max_domains    1.0    h    "flashrate_factor"          "Tuning factor"                          ""
+
+
+#
+# IC:CG ratio settings
+#
+# Each flash rate option should specify a default IC:CG method (iccg_method=0) by either calling one of the followings or provide a new subroutine.
+# New subroutines can be implemented as a public iccg_method "option" or kept private without assigning a method number. If none is provided, user-
+# prescribed constant (iccg_method=1) is used.
+#
+# Otherwise the following public methods are readily implemented for use:
+# 1 - Constant, iccg_prescribed_(num|den), default = 0./1. (all CG)
+# 2 - Coarse 1995-1999 climatology (Boccippio et al 2001)
+# 3 - Cold-cloud depth based formulation (Price and Rind 1993)
+#
+#
+# * IC:CG methods are not implemented as package options because a default method can be associated with a flash rate option, thereby not independent.
+#
+rconfig  integer    iccg_method              namelist,physics   max_domains    0       -   "iccg_method"               "IC:CG partitioning method"                         ""
+rconfig  real       iccg_prescribed_num      namelist,physics   max_domain     0.0     -   "iccg_prescribed_num"       "Numerator of user-specified prescribed IC:CG"      ""
+rconfig  real       iccg_prescribed_den      namelist,physics   max_domains    1.0     -   "iccg_prescribed_dem"       "Denominator of user-specified prescribed IC:CG"    ""
+
+
+#
+# Option-specific settings
+#
+# Only reuse these settings across schemes if appropriate
+#
+rconfig  integer    cellcount_method         namelist,physics   max_domains    0       -   "cellcount_method"          "0=auto, 1=tile, 2=domain"                   ""
+rconfig  real       cldtop_adjustment        namelist,physics   max_domains    0.      -   "cldtop_adjustment"         "Adjustment to cloud top for ltng param"     "km"
+rconfig  real       ltng_temp_upper          namelist,physics   max_domains    -45.    -   "ltng_temp_upper"           "Upper isotherm for lightning modes"         "C"
+rconfig  real       ltng_temp_lower          namelist,physics   max_domains    -15.    -   "ltng_temp_lower"           "Lower isotherm for lightning modes"         "C"
+
+
+#
+#        package name           option number
+#                               1-9:    CRM
+#                               11-19:  CPM
+#                               21-29:  Qualitative indices (?)
+#                               100+:   Experimental
+#
+package	nolightning         lightning_option==0            -       -
+package	ltng_crm_PR92w      lightning_option==1            -       state:cloudflash_total,cloudflash_rate,groundflash_total,groundflash_rate
+package	ltng_cpm_PR92z      lightning_option==11           -       state:cloudflash_total,cloudflash_rate,groundflash_total,groundflash_rate
