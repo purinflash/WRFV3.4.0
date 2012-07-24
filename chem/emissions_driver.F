@@ -49,15 +49,6 @@ CONTAINS
          mebio_acet, mebio_mbo, mebio_no,                                  &
          current_month,                                                    &
          ! end stuff for MEGAN v2.04
-         !            stuff for lightning NOx
-         ter_ht, dy,                                                       &
-         ltng_timestep, ltng_startsec, passive_ltng,                       &
-         temp_upper, temp_lower, N_IC, N_CG,                               &
-         lflash_data, ic_fr, cg_fr,                                        &
-         flashrate_factor, flashrate_method, iccg_method,                  &
-         cellcount_method,                                                 &
-         ktop, &
-         !            end suff for lightning
          ! stuff for aircraft emissions
          emis_aircraft,                                                    &
 
@@ -89,7 +80,6 @@ CONTAINS
   USE module_add_emis_cptec
   USE module_add_emiss_burn
   USE module_plumerise1
-  USE module_lightning_driver
   USE module_aerosols_soa_vbs, only: soa_vbs_addemiss
   USE module_ghg_fluxes 
   
@@ -246,23 +236,6 @@ CONTAINS
    integer, intent(in) :: current_month
 
    ! end stuff for MEGAN v2.04
-!     stuff for lightning NO
-      REAL,  DIMENSION( ims:ime , jms:jme ) ,                          &
-         INTENT(IN)   ::                      ter_ht                         ! terrain height
-      REAL,    INTENT(IN   )  ::  dy
-      REAL,    INTENT(IN   )  ::  temp_upper, temp_lower, N_IC, N_CG         ! upper/lower T(K) modes of vert distrib, nbr of IC and CG flashes
-      INTEGER, INTENT(IN   )  ::  ltng_timestep, ltng_startsec,        &     ! timestep for ltng data, starting time for lightning data
-                                  passive_ltng, lflash_data                  ! flag for putting LNOx into only the scalar array, 
-                                                                             ! flag to choose observed or simulated flash rate
-      REAL , DIMENSION( ims:ime , jms:jme ) ,                       &
-        INTENT(INOUT)   ::                            ic_fr,           &     ! cumulative number of intracloud flashes (diagnostic)
-                                                      cg_fr                  ! cumulative number of cloud-to-ground flashes (diagnostic)
-      REAL,    INTENT(IN   )  ::  flashrate_factor                           ! factor to adjust predicted flashrates -- for PR prediction
-      INTEGER, INTENT(IN   )  ::  flashrate_method                           ! flashrate calculation method
-      INTEGER, INTENT(IN   )  ::  iccg_method                                ! choosing ic to cg ratio method
-      INTEGER, INTENT(IN   )  ::  cellcount_method                           ! choosing tile_wide or domain_wide method
-      INTEGER, DIMENSION( ims:ime , jms:jme ) , INTENT(IN) :: ktop
-!     end stuff for lightning NO
 
       REAL(KIND=8), INTENT(IN   ) ::                                   &
            curr_secs
@@ -1398,36 +1371,6 @@ CONTAINS
        call wrf_debug(15,'emissions_driver NOT CALLING aer add_... routines')
 
     END SELECT aer_addemiss_select
-!        
-!    production of NO from lightning
-!    code from Mary Barth with contributions from:
-!    Lesley Ott, Ken Pickering (crm_decaria scheme)
-!    Christelle Barthe (crm_barthe scheme)    -- not included yet
-!    Regional-scale LNOx schemes from MOZART provided by Louisa Emmons    -- not included yet
-!
-  IF (config_flags%lightning_opt  /= 0)  then
-    
-       CALL lightning_driver(t_phy, p_phy, rho_phy,        &
-                  u_phy, v_phy, vvel,                      &
-                  ter_ht,xlat,xlong,dx,dy,z,               &
-                  moist,                                   &
-                  ids,ide, jds,jde, kds,kde,               &
-                  ims,ime, jms,jme, kms,kme,               &
-                  its,ite, jts,jte, kts,kte,               &
-                  chem(ims,kms,jms,p_no),                  &
-                  tracer(ims,kms,jms,p_tr18_1),            &
-                  tracer(ims,kms,jms,p_tr18_2),            &
-                  config_flags%tracer_opt,                 &
-                  config_flags%lightning_opt, ktau,        &
-                  dtstep, ltng_timestep, ltng_startsec,    &
-                  passive_ltng,temp_upper,temp_lower,      &
-                  N_IC,N_CG,lflash_data,flashrate_factor,  &
-                  flashrate_method,iccg_method,            &
-                  cellcount_method,                        &
-                  ic_fr,cg_fr,xland,ktop)
-
-   END IF
-
 
     END subroutine emissions_driver
 

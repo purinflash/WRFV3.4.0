@@ -325,10 +325,6 @@ state    real  firesize_agef      ij      misc      1         -        i07h     
 state    real  firesize_agsv      ij      misc      1         -        i07h       "firesize_agsv"         "mean firesize for savanna"  "?"
 state    real  firesize_aggr      ij      misc      1         -        i07h       "firesize_aggr"         "mean firesize for grassland"  "?"
 
-# Lightning
-state    real  ic_flshrate    ij      misc        1         -      rh      "IC_FR"                 "Cuml. IC Flash rate"                 "number"
-state    real  cg_flshrate    ij      misc        1         -      rh      "CG_FR"                 "Cuml. CG Flash rate"                 "number"
-
 # track state filed
 state    real  radfld        i{tz}j{tr}   misc     1        -      -       "radfld"             "radfld"                     ""
 state    real  adjcoe        i{tz}j{tt}   misc     1        -      -       "adjcoe"             "adjcoe"                     ""
@@ -484,11 +480,6 @@ state    real  erup_end     ij      misc        1         -      i{13}    "ERUP_
 state    real  dep_vel_o3     ij      misc        1         -      -        "DEP_VEL"               "deposition velocities for o3"        "?"
 state    real  cu_co_ten      ikj     misc        1         -      -        "CU_CO_TEN"             "CONV. TRANSPORT FOR CO"              "?"
 
-# for lightning
-state    integer  ktop           ij      misc        1         -     r           "KTOP"            "Convective Cloud top index"        "#"
-state    integer  ktop_adj       ij      misc        1         -     r           "KTOP_ADJ"        "KTOP limited by WMO tropopause"    "#"
-
-#
 # Tendency diagnostics for chemistry (chemdiag)
 #
 # Currently index references to chem array is done within the code and requires
@@ -2338,20 +2329,6 @@ rconfig   integer kemit_aircraft           namelist,chem        1              1
 rconfig   integer kdvel                    namelist,chem        1              1       -       "kdvel"                ""      ""
 rconfig   integer erosion_dim              namelist,chem        1              3       -       "erosion_dim"          ""      ""
 rconfig   integer    biomass_emiss_opt     namelist,chem        max_domains    0       rh      "biomass_emiss_opt"                   ""    ""
-# Lightning
-rconfig   integer     lightning_opt       namelist,chem        max_domains        0       rh      "lightning_opt"     ""      ""
-rconfig   integer     lightning_time_step namelist,chem        max_domains        0       rh     "lightning_time_step"  ""      ""
-rconfig   integer     lightning_start_seconds namelist,chem    max_domains        0       rh     "lightning_start_seconds"    ""      ""
-rconfig   real        temp_upper          namelist,chem        max_domains      -45.      rh     "temp_upper"         ""      ""
-rconfig   real        temp_lower          namelist,chem        max_domains      -15.      rh     "temp_lower"         ""      ""
-rconfig   real        N_IC                namelist,chem        max_domains        0.      rh     "N_IC"               ""    ""
-rconfig   real        N_CG                namelist,chem        max_domains        0.      rh     "N_CG"               ""    ""
-rconfig   integer     passive_ltng        namelist,chem        max_domains        1       rh     "passive_ltng"     ""      ""
-rconfig   integer     lflash_data         namelist,chem        1                  1       rh     "lflash_data"     ""      ""
-rconfig   real        flashrate_factor    namelist,chem        max_domains        1.      rh     "flashrate_factor"   ""    ""
-rconfig   integer     flashrate_method    namelist,chem        max_domains        1       rh      "flashrate_method"   ""    ""
-rconfig   integer     iccg_method         namelist,chem        max_domains        1       rh      "iccg_method"        ""    ""
-rconfig   integer     cellcount_method    namelist,chem        max_domains        1       rh      "cellcount_method"   ""    ""            
 
 # GHG chemistry namelist options:
 rconfig   character   vprm_opt            namelist,chem        max_domains   "VPRM_param_US"  -       "the file contains VPRM parameters"  ""      ""
@@ -2629,10 +2606,6 @@ package   tracer_smoke  tracer_opt==1       -             tracer:smoke
 package   tracer_test1  tracer_opt==2       -             tracer:tr17_1,tr17_2,tr17_3,tr17_4,tr17_5,tr17_6,tr17_7,tr17_8
 package   tracer_test2  tracer_opt==3       -             tracer:tr17_1,tr17_2,tr17_3,tr17_4,tr17_5,tr17_6,tr17_7,tr17_8
 package   tracer_test3  tracer_opt==4       -             tracer:tr17_1,tr17_2,tr17_3,tr17_4,tr17_5,tr17_6,tr17_7,tr17_8,tr18_1,tr18_2
-
-# Lightning
-package   crmpickering  lightning_opt==1   -   state:ic_flshrate,cg_flshrate
-package   cpmPRO        lightning_opt==101 -   state:ic_flshrate 
 
 # the following arrays only needed for aircraft emissions options
 package   aircraft1      aircraft_emiss_opt==1             -       emis_aircraft:eac_no,eac_co,eac_so2,eac_ch4

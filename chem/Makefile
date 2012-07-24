@@ -89,9 +89,6 @@ MODULES =                           \
   module_cmu_bulkaqchem.o           \
   module_mosaic_cloudchem.o         \
   module_wetscav_driver.o           \
-  module_lightning_driver.o         \
-  module_ltng_crm.o                 \
-  module_ltng_cpm.o                 \
   module_mixactivate_wrappers.o     \
   module_interpolate.o              \
   module_tropopause.o               \
@@ -120,12 +117,6 @@ clean:
 	@ echo 'use the clean script'
 
 # DEPENDENCIES : only dependencies after this line (don't remove the word DEPENDENCIES)
-
-module_lightning_driver.o: module_ltng_crm.o module_ltng_cpm.o
-
-module_ltng_crm.o:
-
-module_ltng_cpm.o:
 
 module_mixactivate_wrappers.o: ../phys/module_mixactivate.o module_data_sorgam.o module_data_soa_vbs.o
 
@@ -307,7 +298,7 @@ mechanism_driver.o: module_data_radm2.o module_radm.o module_aerosols_sorgam.o m
 
 optical_driver.o: module_optical_averaging.o
 
-emissions_driver.o: module_add_emiss_burn.o module_data_radm2.o module_radm.o module_bioemi_simple.o module_bioemi_beis314.o module_bioemi_megan2.o module_emissions_anthropogenics.o module_cbmz_addemiss.o module_mosaic_addemiss.o module_aerosols_sorgam.o module_aerosols_soa_vbs.o module_plumerise1.o module_gocart_dust.o module_gocart_dust_afwa.o module_gocart_seasalt.o module_lightning_driver.o module_ghg_fluxes.o
+emissions_driver.o: module_add_emiss_burn.o module_data_radm2.o module_radm.o module_bioemi_simple.o module_bioemi_beis314.o module_bioemi_megan2.o module_emissions_anthropogenics.o module_cbmz_addemiss.o module_mosaic_addemiss.o module_aerosols_sorgam.o module_aerosols_soa_vbs.o module_plumerise1.o module_gocart_dust.o module_gocart_dust_afwa.o module_gocart_seasalt.o module_ghg_fluxes.o
 
 dry_dep_driver.o: module_data_radm2.o module_aer_drydep.o module_dep_simple.o module_aerosols_sorgam.o module_aerosols_soa_vbs.o module_mosaic_drydep.o ../phys/module_mixactivate.o
 
