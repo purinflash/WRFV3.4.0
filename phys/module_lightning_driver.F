@@ -68,9 +68,14 @@
     CALL wrf_error_fatal (' lightning_init: lightning_dt needs to be a multiple of model time step dt')
  ENDIF
 
-!--  check to see if the prescribed IC:CG ratio is valid (0/0 not allowed)
+!--  check to see if the prescribed IC:CG ratio is valid (0/0 and -1 are not allowed)
  IF (iccg_prescribed_den .eq. 0. .and. iccg_prescribed_num .eq. 0.) THEN
     CALL wrf_error_fatal (' lightning_init: iccg_prescribed cannot be 0.0/0.0')
+ ENDIF
+ IF (iccg_prescribed_den .ne. 0.) THEN
+    IF (iccg_prescribed_num/iccg_prescribed_den .eq. -1.) THEN
+        CALL wrf_error_fatal (' lightning_init: iccg_prescribed cannot be -1')
+    ENDIF
  ENDIF
 
 !
@@ -167,7 +172,7 @@
  USE module_ltng_cpmpr92z      ! lightning_option == 11,  ltng_cpm_PR92z
 
 ! IC:CG methods
-! USE module_ltng_iccg
+ USE module_ltng_iccg
 
  IMPLICIT NONE
 !-----------------------------------------------------------------
@@ -227,6 +232,8 @@
     CASE( ltng_crm_PR92w )
         CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (w_max, CRM)' )
 
+!   CASE ( another_crm_option)
+!       CALL ...
 
     ! CPM lightning options
     CASE( ltng_cpm_PR92z )
@@ -244,16 +251,15 @@
                     total_flashrate
                   )
 
+!   CASE ( another_cpm_option)
+!       CALL ...
+
     ! Invalid lightning options
     CASE DEFAULT
         WRITE(wrf_err_message, * ) ' lightning_driver: The lightning option does not exist: lightning = ', lightning_option
         CALL wrf_error_fatal ( wrf_err_message )
 
  END SELECT flashrate_select
-
-! Tuning factor
- CALL wrf_debug( 200, ' lightning_driver: applying flash rate tuning factor' )
- total_flashrate(:,:) = total_flashrate(:,:) * flashrate_factor
 
 !-----------------------------------------------------------------
 
@@ -264,14 +270,34 @@
         CALL wrf_debug( 100, ' lightning_driver: using option-default IC:CG method'
         iccg_method_default: SELECT CASE(lightning_option)
 
-            CASE( ltng_crm_PR92w )
-                CALL wrf_debug( 100, ' lightning_driver: CRM_PR92w default IC:CG method is...' )
-
-            CASE( ltng_cpm_PR92z )
-                CALL wrf_debug( 100, ' lightning_driver: CPM_PR92z default IC:CG method is...' )
+            CASE( ltng_crm_PR92w,ltng_cpm_PR92z )
+                CALL iccg_boccippio( &
+                            xlat, xlon                                 &
+                            iccg_prescribed_num, iccg_prescribed_den,  &
+                          ! Order dependent args for domain, mem, and tile dims
+                            ids, ide, jds, jde, kds, kde,              &
+                            ims, ime, jms, jme, kms, kme,              &
+                            its, ite, jts, jte, kts, kte,              &
+                          ! Input
+                            total_flashrate,                           &
+                          ! Output
+                            ic_flashrate, cg_flashrate                 &
+                          )
 
             CASE DEFAULT
                 CALL wrf_debug ( 100, ' lightning_driver: no method-default IC:CG implemented, using user-prescribed constant')
+                CALL iccg_prescribed( &
+                            iccg_prescribed_num,                  &
+                            iccg_prescribed_den,                  &
+                          ! Order dependent args for domain, mem, and tile dims
+                            ids, ide, jds, jde, kds, kde,         &
+                            ims, ime, jms, jme, kms, kme,         &
+                            its, ite, jts, jte, kts, kte,         &
+                          ! Input
+                            total_flashrate,                      &
+                          ! Output
+                            ic_flashrate, cg_flashrate            &
+                          )
 
         END SELECT iccg_method_default
 
@@ -279,14 +305,49 @@
     CASE( 1 )
         WRITE(message, * ) ' lightning_driver: using user-prescribed IC:CG ratio = ', iccg_prescribed_num, iccg_prescribed_den
         CALL wrf_debug ( 100, message )
+        CALL iccg_prescribed( &
+                    iccg_prescribed_num,                  &
+                    iccg_prescribed_den,                  &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,         &
+                    ims, ime, jms, jme, kms, kme,         &
+                    its, ite, jts, jte, kts, kte,         &
+                  ! Input
+                    total_flashrate,                      &
+                  ! Output
+                    ic_flashrate, cg_flashrate            &
+                  )
 
-    ! Boccippio 2001
+    ! Boccippio et al, 2001
     CASE( 2 )
         CALL wrf_debug ( 100, ' lightning_driver: using Boccippio 2001 IC:CG climatology')
+        CALL iccg_boccippio( &
+                    xlat, xlon                                 &
+                    iccg_prescribed_num, iccg_prescribed_den,  &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,              &
+                    ims, ime, jms, jme, kms, kme,              &
+                    its, ite, jts, jte, kts, kte,              &
+                  ! Input
+                    total_flashrate,                           &
+                  ! Output
+                    ic_flashrate, cg_flashrate                 &
+                  )
 
     ! Price and Rind, 1993
     CASE( 3 )
         CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio')
+        CALL iccg_pr93( &
+                    kLNB, t_phy, z,                            &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,              &
+                    ims, ime, jms, jme, kms, kme,              &
+                    its, ite, jts, jte, kts, kte,              &
+                  ! Input
+                    total_flashrate,                           &
+                  ! Output
+                    ic_flashrate, cg_flashrate                 &
+                )
 
     ! Invalid IC:CG method
     CASE DEFAULT
@@ -299,8 +360,8 @@
 
  CALL wrf_debug( 200, ' lightning_driver: converting flash rate to total')
 
- ic_flashcount(:,:) = ic_flashcount(:,:) + ic_flashrate(:,:) * lightning_dt
- cg_flashcount(:,:) = cg_flashcount(:,:) + cg_flashrate(:,:) * lightning_dt
+ ic_flashcount(ips:ipe,jps:jpe) = ic_flashcount(ips:ipe,jps:jpe) + ic_flashrate(ips:ipe,jps:jpe) * flashrate_factor * lightning_dt
+ cg_flashcount(ips:ipe,jps:jpe) = cg_flashcount(ips:ipe,jps:jpe) + cg_flashrate(ips:ipe,jps:jpe) * flashrate_factor * lightning_dt
 
 !-----------------------------------------------------------------
 
