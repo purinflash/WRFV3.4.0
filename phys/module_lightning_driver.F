@@ -5,10 +5,23 @@
 !
 ! Contact: J. Wong <johnwong@ucar.edu>
 !
+!**********************************************************************
+
  MODULE module_lightning_driver
  CONTAINS
 
- SUBROUTINE lightning_init (  itimestep, restart, dt,                   &
+
+!**********************************************************************
+!
+! SUBROUTINE lightning_init
+!
+! Performs necessary option compatibility checks and zero out flash
+! arrays at first timestep.
+!
+!**********************************************************************
+
+ SUBROUTINE lightning_init ( &
+                              itimestep, restart, dt,                   &
                             ! Namelist control options
                               cu_physics,                               &
                               lightning_option, lightning_dt,           &
@@ -51,7 +64,7 @@
  IF (itimestep .gt. 0 .or. lightning_option .eq. 0) return
 
 !-- check to see if lightning_dt is a proper multiple of dt
- IF ( MOD(lightnign_dt,dt) .ne. 0. ) THEN
+ IF ( MOD(lightning_dt,dt) .ne. 0. ) THEN
     CALL wrf_error_fatal (' lightning_init: lightning_dt needs to be a multiple of model time step dt')
  ENDIF
 
@@ -102,14 +115,14 @@
 
  END SUBROUTINE lightning_init
 
-!-----------------------------------------------------------------
+
+!**********************************************************************
 !
 ! SUBROUTINE lightning_driver
 !
 ! Redirect to the appropriate lightning subroutine.
 !
-!-----------------------------------------------------------------
-
+!**********************************************************************
 
  SUBROUTINE lightning_driver ( &
                           ! Frequently used prognostics
@@ -151,7 +164,7 @@
 
 ! Parameterization options
 ! USE module_ltng_pickering    ! lightning_option == 1,   ltng_crm_PR92w
-! USE module_ltng_michalon     ! lightning_option == 11,  ltng_cpm_PR92z
+ USE module_ltng_cpmpr92z      ! lightning_option == 11,  ltng_cpm_PR92z
 
 ! IC:CG methods
 ! USE module_ltng_iccg
@@ -207,18 +220,29 @@
 
 !-----------------------------------------------------------------
 
- CALL wrf_debug ( 100, ' lightning_driver: calculating flash rate')
+ CALL wrf_debug ( 100, ' lightning_driver: calculating flash rate' )
  flashrate_select: SELECT CASE(lightning_option)
 
     ! CRM lightning options
     CASE( ltng_crm_PR92w )
-        CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (w_max, CRM)')
+        CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (w_max, CRM)' )
 
 
     ! CPM lightning options
     CASE( ltng_cpm_PR92z )
-        CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (z_top, CPM)')
+        CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (z_top, CPM)' )
 
+        CALL ltng_cpmpr92z ( &
+                  ! Frequently used prognostics
+                    dx, dy, xland, ht, z, t_phy,      &
+                    kLNB, cldtop_adjustment,          &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,     &
+                    ims, ime, jms, jme, kms, kme,     &
+                    its, ite, jts, jte, kts, kte,     &
+                  ! Mandatory output for all quantitative schemes
+                    total_flashrate
+                  )
 
     ! Invalid lightning options
     CASE DEFAULT
@@ -226,6 +250,10 @@
         CALL wrf_error_fatal ( wrf_err_message )
 
  END SELECT flashrate_select
+
+! Tuning factor
+ CALL wrf_debug( 200, ' lightning_driver: applying flash rate tuning factor' )
+ total_flashrate(:,:) = total_flashrate(:,:) * flashrate_factor
 
 !-----------------------------------------------------------------
 
