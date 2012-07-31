@@ -47,6 +47,7 @@ CONTAINS
                      ,zmmtu, zmmtv, zmupgu, zmupgd, zmvpgu, zmvpgd    &
                      ,zmicuu, zmicud, zmicvu, zmicvd, zmdice, zmdliq  &
                      ,k22_shallow,kbcon_shallow,ktop_shallow,xmb_shallow &
+                     ,ktop_deep &
                  ! Optional arguments for SAS scheme
                      ,pgcon,sas_mass_flux                             &
                      ,shalconv,shal_pgcon                             &
@@ -370,6 +371,8 @@ CONTAINS
    INTEGER, DIMENSION( ims:ime, jms:jme ),                       &
          OPTIONAL, INTENT(INOUT) ::                              &
      k22_shallow,kbcon_shallow,ktop_shallow
+   INTEGER, DIMENSION( ims:ime, jms:jme ),                       &
+         OPTIONAL, INTENT(  OUT) :: ktop_deep
    REAL, DIMENSION( ims:ime, kms:kme, jms:jme ),                 &
          OPTIONAL, INTENT(INOUT) ::                              &
                       ! optional moisture tracers
@@ -701,6 +704,7 @@ CONTAINS
                ,ENSDIM=ensdim,MAXIENS=maxiens,MAXENS=maxens     &
                ,MAXENS2=maxens2,MAXENS3=maxens3                 &
                ,htop=htop,hbot=hbot                             &
+               ,ktop_deep=ktop_deep                             &
                ,CU_ACT_FLAG=CU_ACT_FLAG,warm_rain=warm_rain     &
                ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=kds,KDE=kde &
                ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=kms,KME=kme &
@@ -806,6 +810,7 @@ CONTAINS
                ,kbcon_shallow=kbcon_shallow                     &
                ,ktop_shallow=ktop_shallow                       &
                ,xmb_shallow=xmb_shallow                         &
+               ,ktop_deep=ktop_deep                             &
                ,cugd_tten=cugd_tten,cugd_qvten=cugd_qvten       &
                ,cugd_ttens=cugd_ttens,cugd_qvtens=cugd_qvtens   &
                ,cugd_qcten=cugd_qcten,cugd_avedx=cugd_avedx     &
