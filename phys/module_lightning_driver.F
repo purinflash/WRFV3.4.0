@@ -15,8 +15,7 @@
 !
 ! SUBROUTINE lightning_init
 !
-! Performs necessary option compatibility checks and zero out flash
-! arrays at first timestep.
+! Performs compatibility checks and zero out flash arrays at first timestep.
 !
 !**********************************************************************
 
@@ -92,7 +91,9 @@
 
     ! Convective parameterized
     CASE (ltng_cpm_PR92z)
-        IF ( cu_physics .eq. 0 ) CALL wrf_error_fatal( ' lightning_init: Selected lightning option requires cu_physics' )
+        IF ( cu_physics .ne. GDSCHEME .and. cu_physics .ne. G3SCHEME  ) THEN
+          CALL wrf_error_fatal( ' lightning_init: Selected lightning option requires GD or G3 convective parameterization' )
+        ENDIF
 
         WRITE(message, * ) ' lightning_init: CPM lightning option selected: ', lightning_option
         CALL wrf_debug ( 200 , message )
@@ -205,7 +206,7 @@
 ! Order dependent args for domain, mem, and tile dims
  INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
  INTEGER, INTENT(IN   )    ::       ims,ime, jms,jme, kms,kme
- INTEGER, INTENT(IN   )    ::       ips,ipe, jps,jpe, kps,kpe
+ INTEGER, INTENT(IN   )    ::       its,ite, jts,jte, kts,kte
 
 ! Mandatory outputs for all quantitative schemes
  REAL, OPTIONAL, DIMENSION( ims:ime,          jms:jme ), INTENT(INOUT) :: ic_flashcount , cg_flashcount
@@ -360,8 +361,8 @@
 
  CALL wrf_debug( 200, ' lightning_driver: converting flash rate to total')
 
- ic_flashcount(ips:ipe,jps:jpe) = ic_flashcount(ips:ipe,jps:jpe) + ic_flashrate(ips:ipe,jps:jpe) * flashrate_factor * lightning_dt
- cg_flashcount(ips:ipe,jps:jpe) = cg_flashcount(ips:ipe,jps:jpe) + cg_flashrate(ips:ipe,jps:jpe) * flashrate_factor * lightning_dt
+ ic_flashcount(its:ite,jts:jte) = ic_flashcount(its:ite,jts:jte) + ic_flashrate(its:ite,jts:jte) * flashrate_factor * lightning_dt
+ cg_flashcount(its:ite,jts:jte) = cg_flashcount(its:ite,jts:jte) + cg_flashrate(its:ite,jts:jte) * flashrate_factor * lightning_dt
 
 !-----------------------------------------------------------------
 

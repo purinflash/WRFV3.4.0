@@ -26,7 +26,7 @@
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,         &
                             ims, ime, jms, jme, kms, kme,         &
-                            its, ite, jts, jte, kts, kte,         &
+                            ips, ipe, jps, jpe, kps, kpe,         &
                           ! Mandatory output for all quantitative schemes
                             total_flashrate
                           )
@@ -64,7 +64,7 @@
 ! Local variables
  REAL                                :: dA              ! grid area dx*dy in km2
  REAL                                :: zkm             ! AGL z in km
- REAL, DIMENSION( ims:ime, jms:jme ) :: ztop            ! cloud top height AGL in km
+ REAL, DIMENSION( ips:ipe, jps:jpe ) :: ztop            ! cloud top height AGL in km
 
  REAL, PARAMETER:: baseArea=1296. ! base-case area, dx = 36 km
 
@@ -81,7 +81,7 @@
 
 ! Compute AGL heights in km
  jloop: DO j=jps,jpe
-    iloop: DO i=jps,jpe
+    iloop: DO i=ips,ipe
         IF ( t(i,ktop,j) .gt. 273.15 ) CONTINUE                    ! Cloud top must freeze
         zkm = ( z(i,ktop,j) - ht(i,j) )/1E3 + cldtop_adjustment    ! Compute AGL height in km
         IF ( zkm .lt. 0. ) CONTINUE                                ! Must be above ground

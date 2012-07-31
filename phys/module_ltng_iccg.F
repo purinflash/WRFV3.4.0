@@ -26,7 +26,7 @@
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,               &
                             ims, ime, jms, jme, kms, kme,               &
-                            its, ite, jts, jte, kts, kte,               &
+                            ips, ipe, jps, jpe, kps, kpe,               &
                           ! Input
                             total_flashrate,                            &
                           ! Output
@@ -96,7 +96,7 @@
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,              &
                             ims, ime, jms, jme, kms, kme,              &
-                            its, ite, jts, jte, kts, kte,              &
+                            ips, ipe, jps, jpe, kps, kpe,              &
                           ! Input
                             total_flashrate,                           &
                           ! Output
@@ -182,7 +182,7 @@
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,              &
                             ims, ime, jms, jme, kms, kme,              &
-                            its, ite, jts, jte, kts, kte,              &
+                            ips, ipe, jps, jpe, kps, kpe,              &
                           ! Input
                             total_flashrate,                           &
                           ! Output
