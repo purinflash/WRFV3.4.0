@@ -3,6 +3,12 @@
 ! Contains initialization subroutine lightning_init and driver subroutine
 ! lightning_driver.
 !
+! History:
+!   3.4.1 - rewritten and added init, separate out flash rate
+!           parameterization from emission
+!   3.3.x - lightning_driver written by M. Barth called in
+!           emission_driver in chem
+!
 ! Contact: J. Wong <johnwong@ucar.edu>
 !
 !**********************************************************************
@@ -119,6 +125,8 @@
     CALL wrf_error_fatal ( ' lightning_init: flash arrays not present' )
  ENDIF
 
+ CALL wrf_debug( 200, ' lightning_init: finishing')
+
  END SUBROUTINE lightning_init
 
 
@@ -137,7 +145,7 @@
                             t_phy, p_phy, rho, u, v, w,           &
                             z, moist,                             &
                           ! Scheme specific prognostics
-                            kLNB,                                 &
+                            ktop_deep,                            &
                           ! Mandatory namelist inputs
                             lightning_option,                     &
                             lightning_dt,                         &
@@ -188,7 +196,7 @@
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme, num_moist), INTENT(IN   ) :: moist
 
 ! Scheme specific prognostics
- INTEGER, DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: kLNB     ! model LNB from cu_physics
+ INTEGER, DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: ktop_deep     ! model LNB from cu_physics
 
 ! Mandatory namelist inputs
  INTEGER, INTENT(IN   )    ::       lightning_option
@@ -243,7 +251,7 @@
         CALL ltng_cpmpr92z ( &
                   ! Frequently used prognostics
                     dx, dy, xland, ht, z, t_phy,      &
-                    kLNB, cldtop_adjustment,          &
+                    ktop_deep, cldtop_adjustment,     &
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,     &
                     ims, ime, jms, jme, kms, kme,     &
@@ -339,7 +347,7 @@
     CASE( 3 )
         CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio')
         CALL iccg_pr93( &
-                    kLNB, t_phy, z,                            &
+                    ktop_deep, cldtop_adjustment, t_phy, z,    &
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,              &
                     ims, ime, jms, jme, kms, kme,              &

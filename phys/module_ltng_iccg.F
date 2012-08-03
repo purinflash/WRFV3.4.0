@@ -178,7 +178,7 @@
 !
 !**********************************************************************
  SUBROUTINE iccg_pr93( &
-                            kLNB, t, z,                                &
+                            kLNB, cldtop_adjustment, t, z,             &
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,              &
                             ims, ime, jms, jme, kms, kme,              &
@@ -193,6 +193,7 @@
 !-----------------------------------------------------------------
 ! Inputs
  INTEGER, DIMENSION( ims:ime,          jms:jme ), INTENT(IN   ) :: kLNB
+ REAL,                                            INTENT(IN   ) :: cldtop_adjustment
  REAL,    DIMENSION( ims:ims, kms:kme, jms:jme ), INTENT(IN   ) :: t, z
 
 ! Order dependent args for domain, mem, and tile dims
@@ -233,7 +234,8 @@
             kfreeze = kfreeze - 1
         ENDDO
 
-        depth = ( z(i,kLNB,j) - z(i,kfreeze,j) ) * 1E-3
+        depth = ( z(i,kLNB,j) - z(i,kfreeze,j) ) * 1E-3 + cldtop_adjustment
+        IF (depth .le. 0.) CONTINUE
         depth = max( dH_min, min( dH_max, depth ))
 
         ratio = (((coef_A*depth+coef_B )*depth+coef_C)*depth+coef_D)*depth+coef_E

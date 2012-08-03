@@ -59,6 +59,7 @@ SUBROUTINE solve_em ( grid , config_flags  &
    USE module_polarfft
    USE module_microphysics_driver
    USE module_microphysics_zero_out
+   USE module_lightning_driver, ONLY : lightning_driver
    USE module_fddaobs_driver
    USE module_diagnostics
 #ifdef WRF_CHEM
@@ -3446,6 +3447,40 @@ BENCH_START(moist_phys_end_tim)
 !-----------------------------------------------------------
 !  end filter for moist variables post-microphysics and end of timestep
 !-----------------------------------------------------------
+
+!-----------------------------------------------------------
+!  Lightning flash rate diagnostic production
+!-----------------------------------------------------------
+    CALL lightning_driver ( &
+          ! Frequently used prognostics
+            grid%itimestep, grid%dt, grid%dx, grid%dy,                &
+            grid%xlat, grid%xlon, grid%xland, grid%ht,                &
+            grid%t_phy, p_phy, rho, u_phys, v_phys, grid%w_2,     &
+            grid%z, moist,                             &
+          ! Scheme specific prognostics
+            grid%ktop_deep,                                    &
+          ! Mandatory namelist inputs
+            config_flags%lightning_option,                     &
+            config_flags%lightning_dt,                         &
+            config_flags%lightning_start_seconds,              &
+            config_flags%flashrate_factor,                     &
+          ! IC:CG namelist settings
+            config_flags%iccg_method,                          &
+            config_flags%iccg_prescribed_num,                  &
+            config_flags%iccg_prescribed_den,                  &
+          ! Scheme specific namelist inputs
+            config_flags%cellcount_method,                     &
+            config_flags%cldtop_adjustment,                    &
+            config_flags%ltng_temp_upper,                      &
+            config_flags%ltng_temp_lower,                      &
+          ! Order dependent args for domain, mem, and tile dims
+            ids, ide, jds, jde, kds, kde,         &
+            ims, ime, jms, jme, kms, kme,         &
+            ips, ipe, jps, jpe, kps, kpe,         &
+          ! Mandatory outputs for all quantitative schemes
+            grid%ic_flashcount, grid%ic_flashrate,          &
+            grid%cg_flashcount, grid%cg_flashrate           &
+      )
 
    !$OMP PARALLEL DO   &
    !$OMP PRIVATE ( ij, its, ite, jts, jte, im, ii, jj, kk )

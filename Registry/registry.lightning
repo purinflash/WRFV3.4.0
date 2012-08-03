@@ -65,5 +65,5 @@ rconfig  real       ltng_temp_lower          namelist,physics   max_domains    -
 #                               100+:   Experimental
 #
 package	                    lightning_option==0            -       -
-package	ltng_crm_PR92w      lightning_option==1            -       state:cloudflash_total,cloudflash_rate,groundflash_total,groundflash_rate
-package	ltng_cpm_PR92z      lightning_option==11           -       state:cloudflash_total,cloudflash_rate,groundflash_total,groundflash_rate
+package	ltng_crm_PR92w      lightning_option==1            -       -
+package	ltng_cpm_PR92z      lightning_option==11           -       -

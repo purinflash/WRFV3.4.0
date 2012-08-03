@@ -24,6 +24,7 @@
    USE module_comm_dm
 
    USE module_physics_init
+   USE module_lightning_driver, ONLY : lightning_init
    USE module_fr_sfire_driver_wrf, ONLY : sfire_driver_em_init
    USE module_stoch, ONLY : SETUP_STOCH,rand_seed, update_stoch
 #ifdef WRF_CHEM
@@ -803,6 +804,22 @@
    grid%LU_MASK = 0.
    WHERE ( grid%lu_index .EQ. 16 ) grid%LU_MASK = 1.
 #endif
+
+   call wrf_debug(200,'start_em: calling lightning_init')
+   CALL lightning_init ( grid%itimestep, grid%restart, grid%dt,                    &
+                    ! Namelist control options
+                         config_flags%cu_physics,                                       &
+                         config_flags%lightning_option, config_flags%lightning_dt,           &
+                         config_flags%lightning_start_seconds,                          &
+                         config_flags%iccg_prescribed_num, config_flags%iccg_prescribed_den, &
+                    ! Order dependent args for domain, mem, and tile dims
+                         ids, ide, jds, jde, kds, kde,             &
+                         ims, ime, jms, jme, kms, kme,             &
+                         grid%i_start(ij), grid%i_end(ij), grid%j_start(ij), grid%j_end(ij), kts, kte, &
+                    ! IC and CG flash rates and accumulated flash count
+                         grid%ic_flashcount, grid%ic_flashrate,              &
+                         grid%cg_flashcount, grid%cg_flashrate               &
+                    )
 
    END IF
 
