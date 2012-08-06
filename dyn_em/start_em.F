@@ -806,19 +806,29 @@
 #endif
 
    call wrf_debug(200,'start_em: calling lightning_init')
-   CALL lightning_init ( grid%itimestep, grid%restart, grid%dt,                    &
+   CALL lightning_init ( itimestep=grid%itimestep, restart=grid%restart, dt=grid%dt               &
                     ! Namelist control options
-                         config_flags%cu_physics,                                       &
-                         config_flags%lightning_option, config_flags%lightning_dt,           &
-                         config_flags%lightning_start_seconds,                          &
-                         config_flags%iccg_prescribed_num, config_flags%iccg_prescribed_den, &
+                        ,cu_physics=config_flags%cu_physics                                       &
+                        ,lightning_option=config_flags%lightning_option                           &
+                        ,lightning_dt=config_flags%lightning_dt                                   &
+                        ,lightning_start_seconds=config_flags%lightning_start_seconds             &
+                        ,iccg_prescribed_num=config_flags%iccg_prescribed_num                     &
+                        ,iccg_prescribed_den=config_flags%iccg_prescribed_den                     &
                     ! Order dependent args for domain, mem, and tile dims
-                         ids, ide, jds, jde, kds, kde,             &
-                         ims, ime, jms, jme, kms, kme,             &
-                         grid%i_start(ij), grid%i_end(ij), grid%j_start(ij), grid%j_end(ij), kts, kte, &
+                        ,ids=ids, ide=ide, jds=jds, jde=jde, kds=kds, kde=kde             &
+                        ,ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme             &
+                        ,its=grid%i_start(ij), ite=grid%i_end(ij)                         &
+                        ,jts=grid%j_start(ij), jte=grid%j_end(ij), kts=kts, kte=kte       &
                     ! IC and CG flash rates and accumulated flash count
-                         grid%ic_flashcount, grid%ic_flashrate,              &
-                         grid%cg_flashcount, grid%cg_flashrate               &
+                        ,ic_flashcount=grid%ic_flashcount, ic_flashrate=grid%ic_flashrate        &
+                        ,cg_flashcount=grid%cg_flashcount, cg_flashrate=grid%cg_flashrate        &
+#ifdef WRF_CHEM
+                        ,lnox_opt=config_flags%lnox_opt           &
+                        ,lnox_passive=config_flags%lnox_passive   &
+                        ,lnox_total=tracer(:,:,:,p_lnox_total)    &
+                        ,lnox_ic=tracer(:,:,:,p_lnox_ic)          &
+                        ,lnox_cg=tracer(:,:,:,p_lnox_cg)          &
+#endif
                     )
 
    END IF

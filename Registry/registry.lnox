@@ -1,0 +1,30 @@
+#
+#  registry.lnox
+#
+#  Included by Registry.EM_CHEM
+#
+#  Contains state variables and namelist options for lightning NOx parameterization.
+#
+
+# Lightning NOx tracers
+state   real    lnox_total   ikj    tracer        1         -     i8rhusdf=(bdy_interp:dt)    "lnox_total"      "Total LNOx tracer"          "ppmv"
+state   real    lnox_ic      ikj    tracer        1         -     i8rhusdf=(bdy_interp:dt)    "lnox_ic"         "IC LNOx tracer"             "ppmv"
+state   real    lnox_cg      ikj    tracer        1         -     i8rhusdf=(bdy_interp:dt)    "lnox_cg"         "CG LNOx tracer"             "ppmv"
+
+
+# lightning NOx options (primary settings in registry.lightning)
+rconfig   real      N_IC            namelist,chem     max_domains        500.    rh     "N_IC"               "IC emission factor"                "moles/flash"
+rconfig   real      N_CG            namelist,chem     max_domains        500.    rh     "N_CG"               "CG emission factor"                "moles/flash"
+rconfig   integer   lnox_opt        namelist,chem     max_domains        0       rh     "lnox_opt"           "Method for vertical distribution"   ""
+rconfig   integer   lnox_passive    namelist,chem     max_domains        0       rh     "lnox_passive"       "1 = tracer only (no emission)"      ""
+
+
+# lightning NOx options
+package  lnox_opt_none      lnox_opt==0    -   -
+package  lnox_opt_ott       lnox_opt==1    -   tracer:lnox_total
+package  lnox_opt_flat      lnox_opt==2    -   tracer:lnox_ic,lnox_cg
+
+
+# lightning NOx passive tracer options
+package  lnox_passive_normal   lnox_passive==0   -  -
+package  lnox_passive_only     lnox_passive==1   -  -

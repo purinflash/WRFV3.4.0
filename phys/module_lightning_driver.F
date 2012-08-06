@@ -26,19 +26,24 @@
 !**********************************************************************
 
  SUBROUTINE lightning_init ( &
-                              itimestep, restart, dt,                   &
+                              itimestep, restart, dt                   &
                             ! Namelist control options
-                              cu_physics,                               &
-                              lightning_option, lightning_dt,           &
-                              lightning_start_seconds,                  &
-                              iccg_prescribed_num, iccg_prescribed_den, &
+                             ,cu_physics                               &
+                             ,lightning_option, lightning_dt           &
+                             ,lightning_start_seconds                  &
+                             ,iccg_prescribed_num, iccg_prescribed_den &
                             ! Order dependent args for domain, mem, and tile dims
-                              ids, ide, jds, jde, kds, kde,             &
-                              ims, ime, jms, jme, kms, kme,             &
-                              its, ite, jts, jte, kts, kte,             &
+                             ,ids, ide, jds, jde, kds, kde             &
+                             ,ims, ime, jms, jme, kms, kme             &
+                             ,its, ite, jts, jte, kts, kte             &
                             ! IC and CG flash rates and accumulated flash count
-                              ic_flashcount, ic_flashrate,              &
-                              cg_flashcount, cg_flashrate               &
+                             ,ic_flashcount, ic_flashrate              &
+                             ,cg_flashcount, cg_flashrate              &
+#ifdef WRF_CHEM
+                             ,lnox_opt,lnox_passive                    &
+                            ! LNOx tracers (chemistry only)
+                             ,lnox_total, lnox_ic, lnox_cg
+#endif
                             )
 !-----------------------------------------------------------------
  USE module_state_description
@@ -60,6 +65,12 @@
  REAL, OPTIONAL, DIMENSION( ims:ime,kms:kme,jms:jme ), &
                  INTENT(OUT) :: ic_flashcount, ic_flashrate, &
                                 cg_flashcount, cg_flashrate
+
+#ifdef WRF_CHEM
+ INTEGER, INTENT(IN)         :: lnox_opt
+ REAL, OPTIONAL, DIMENSION( ims:me,kms:kme,jms:jme ), &
+                 INTENT(OUT) :: lnox_total, lnox_ic, lnox_cg
+#endif
 
  CHARACTER (LEN=80) :: message
 
@@ -124,6 +135,20 @@
  ELSE
     CALL wrf_error_fatal ( ' lightning_init: flash arrays not present' )
  ENDIF
+
+#ifdef WRF_CHEM
+
+ CALL wrf_debug( 100, ' lightning_init: initializing and validating WRF-Chem only arrays and settings')
+
+ IF ( lnox_opt .ne. lnox_opt_none .and. lightning_option .eq. 0 ) THEN
+   CALL wrf_error_fatal ( ' lightning_init: cannot set LNOx without lightning_option')
+ ENDIF
+
+ IF (PRESENT( lnox_total )) lnox_total(:,:,:) = 0.
+ IF (PRESENT( lnox_cg    )) lnox_cg(:,:,:)    = 0.
+ IF (PRESENT( lnox_ic    )) lnox_ic(:,:,:)    = 0.
+
+#endif
 
  CALL wrf_debug( 200, ' lightning_init: finishing')
 
@@ -265,7 +290,7 @@
 
     ! Invalid lightning options
     CASE DEFAULT
-        WRITE(wrf_err_message, * ) ' lightning_driver: The lightning option does not exist: lightning = ', lightning_option
+        WRITE(wrf_err_message, * ) ' lightning_driver: The lightning option does not exist: lightning_opt = ', lightning_option
         CALL wrf_error_fatal ( wrf_err_message )
 
  END SELECT flashrate_select
