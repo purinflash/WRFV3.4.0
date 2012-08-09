@@ -846,9 +846,11 @@
               grid%mebio_isop,grid%mebio_apin,grid%mebio_bpin, grid%mebio_bcar,            &
               grid%mebio_acet,grid%mebio_mbo,grid%mebio_no,                                &
               current_month,                                                               &
+         ! stuff for LNOx emissions
+             grid%ht,                                                                      &
+             grid%ic_flashrate, grid%cg_flashrate,                                         &
          ! stuff for aircraft emissions
               emis_aircraft,                                                               &
-
          ! stuff for the GHG fluxes
               vprm_in,grid%rad_vprm,grid%lambda_vprm,                                      &
               grid%alpha_vprm,grid%resp_vprm,grid%xtime,                                   &

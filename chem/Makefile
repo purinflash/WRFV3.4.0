@@ -6,6 +6,8 @@ RM      =       rm -f
 
 
 MODULES =                           \
+  module_lightning_nox_driver.o     \
+  module_lightning_nox_defaults.o   \
   module_chem_utilities.o           \
   module_data_radm2.o               \
   module_data_sorgam.o              \
@@ -93,7 +95,7 @@ MODULES =                           \
   module_interpolate.o              \
   module_tropopause.o               \
   module_upper_bc_driver.o          \
-  module_aer_drydep.o
+  module_aer_drydep.o               \
 
 OBJS    =                           \
         chemics_init.o              \
@@ -284,7 +286,7 @@ module_tropopause.o: module_interpolate.o
 
 module_upper_bc_driver.o: module_tropopause.o
 
-chem_driver.o: module_radm.o ../dyn_em/module_convtrans_prep.o module_chem_utilities.o module_data_radm2.o module_dep_simple.o module_bioemi_simple.o module_vertmx_wrf.o module_phot_mad.o module_aerosols_sorgam.o module_data_cbmz.o module_cbmz.o module_wetscav_driver.o dry_dep_driver.o emissions_driver.o module_input_tracer.o module_input_tracer_data.o module_tropopause.o module_upper_bc_driver.o module_ltng_cpm.o module_ctrans_grell.o module_data_soa_vbs.o module_aer_opt_out.o module_data_sorgam.o module_gocart_so2so4.o
+chem_driver.o: module_radm.o ../dyn_em/module_convtrans_prep.o module_chem_utilities.o module_data_radm2.o module_dep_simple.o module_bioemi_simple.o module_vertmx_wrf.o module_phot_mad.o module_aerosols_sorgam.o module_data_cbmz.o module_cbmz.o module_wetscav_driver.o dry_dep_driver.o emissions_driver.o module_input_tracer.o module_input_tracer_data.o module_tropopause.o module_upper_bc_driver.o module_ctrans_grell.o module_data_soa_vbs.o module_aer_opt_out.o module_data_sorgam.o module_gocart_so2so4.o
 
 chemics_init.o: module_cbm4_initmixrats.o module_cbmz_initmixrats.o module_gocart_aerosols.o ../phys/module_data_gocart_dust.o module_data_gocart_seas.o module_data_gocartchem.o module_gocart_chem.o module_dep_simple.o module_ftuv_driver.o module_phot_mad.o module_gocart_chem.o module_aerosols_sorgam.o module_mixactivate_wrappers.o module_mosaic_driver.o module_input_chem_data.o module_tropopause.o module_upper_bc_driver.o
 
@@ -298,13 +300,17 @@ mechanism_driver.o: module_data_radm2.o module_radm.o module_aerosols_sorgam.o m
 
 optical_driver.o: module_optical_averaging.o module_peg_util.o
 
-emissions_driver.o: module_add_emiss_burn.o module_data_radm2.o module_radm.o module_bioemi_simple.o module_bioemi_beis314.o module_bioemi_megan2.o module_emissions_anthropogenics.o module_cbmz_addemiss.o module_mosaic_addemiss.o module_aerosols_sorgam.o module_aerosols_soa_vbs.o module_plumerise1.o module_gocart_dust.o module_gocart_dust_afwa.o module_gocart_seasalt.o module_ghg_fluxes.o
+emissions_driver.o: module_add_emiss_burn.o module_data_radm2.o module_radm.o module_bioemi_simple.o module_bioemi_beis314.o module_bioemi_megan2.o module_emissions_anthropogenics.o module_cbmz_addemiss.o module_mosaic_addemiss.o module_aerosols_sorgam.o module_aerosols_soa_vbs.o module_plumerise1.o module_gocart_dust.o module_gocart_dust_afwa.o module_gocart_seasalt.o module_ghg_fluxes.o module_lightning_nox_driver.o
 
 dry_dep_driver.o: module_data_radm2.o module_aer_drydep.o module_dep_simple.o module_aerosols_sorgam.o module_aerosols_soa_vbs.o module_mosaic_drydep.o ../phys/module_mixactivate.o
 
 module_wetscav_driver.o: module_mosaic_wetscav.o module_aerosols_sorgam.o module_mozcart_wetscav.o
 
 module_sorgam_aqchem.o: module_ctrans_aqchem.o module_data_sorgam.o
+
+module_lightning_nox_defaults.o:
+
+module_lightning_nox_driver.o: module_lightning_nox_defaults.o
 
 convert_emiss : convert_emiss.o
 	$(RANLIB) ../main/$(LIBWRFLIB)

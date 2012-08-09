@@ -3451,11 +3451,12 @@ BENCH_START(moist_phys_end_tim)
 !-----------------------------------------------------------
 !  Lightning flash rate diagnostic production
 !-----------------------------------------------------------
+  IF ( config_flags%lightning_option /= 0 ) THEN
     CALL lightning_driver ( &
           ! Frequently used prognostics
             grid%itimestep, grid%dt, grid%dx, grid%dy,                &
-            grid%xlat, grid%xlon, grid%xland, grid%ht,                &
-            grid%t_phy, p_phy, rho, u_phys, v_phys, grid%w_2,     &
+            grid%xlat, grid%xlong, grid%xland, grid%ht,                &
+            grid%t_phy, p_phy, rho, u_phy, v_phy, grid%w_2,     &
             grid%z, moist,                             &
           ! Scheme specific prognostics
             grid%ktop_deep,                                    &
@@ -3481,6 +3482,7 @@ BENCH_START(moist_phys_end_tim)
             grid%ic_flashcount, grid%ic_flashrate,          &
             grid%cg_flashcount, grid%cg_flashrate           &
       )
+   ENDIF
 
    !$OMP PARALLEL DO   &
    !$OMP PRIVATE ( ij, its, ite, jts, jte, im, ii, jj, kk )

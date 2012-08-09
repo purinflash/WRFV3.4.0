@@ -85,7 +85,7 @@ CONTAINS
 !
 ! Optionals
 !
-   INTEGER, DIMENSION( ims:ime,       , jms:jme ),              &
+   INTEGER, DIMENSION( ims:ime,         jms:jme ),              &
          OPTIONAL,                                              &
          INTENT(  OUT) ::                           ktop_deep
 

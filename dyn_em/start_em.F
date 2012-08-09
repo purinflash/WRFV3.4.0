@@ -805,7 +805,7 @@
    WHERE ( grid%lu_index .EQ. 16 ) grid%LU_MASK = 1.
 #endif
 
-   call wrf_debug(200,'start_em: calling lightning_init')
+   call wrf_debug(100,'start_em: calling lightning_init')
    CALL lightning_init ( itimestep=grid%itimestep, restart=grid%restart, dt=grid%dt               &
                     ! Namelist control options
                         ,cu_physics=config_flags%cu_physics                                       &
@@ -830,6 +830,8 @@
                         ,lnox_cg=tracer(:,:,:,p_lnox_cg)          &
 #endif
                     )
+
+    call wrf_debug(100,'start_em: after calling lightning_init')
 
    END IF
 

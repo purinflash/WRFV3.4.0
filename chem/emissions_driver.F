@@ -49,9 +49,12 @@ CONTAINS
          mebio_acet, mebio_mbo, mebio_no,                                  &
          current_month,                                                    &
          ! end stuff for MEGAN v2.04
+         ! stuff for LNOx emissions
+         ht,                                                               &
+         ic_flashrate, cg_flashrate,                                       &
+         ! end stuff for LNOx emissions
          ! stuff for aircraft emissions
          emis_aircraft,                                                    &
-
          ! stuff for GHG fluxes
          vprm_in,rad_vprm,lambda_vprm,alpha_vprm,resp_vprm,               &
          xtime,tslb,wet_in,rainc,rainnc,potevp,sfcevp,lu_index,            &
@@ -81,7 +84,8 @@ CONTAINS
   USE module_add_emiss_burn
   USE module_plumerise1
   USE module_aerosols_soa_vbs, only: soa_vbs_addemiss
-  USE module_ghg_fluxes 
+  USE module_ghg_fluxes
+  USE module_lightning_nox_driver
   
   IMPLICIT NONE
 
@@ -271,6 +275,9 @@ CONTAINS
       REAL, DIMENSION(ims:ime,1,jms:jme,num_wet_in), INTENT(IN)  :: wet_in
       REAL, INTENT(IN) :: xtime
 ! end ghg tracer stuff
+! stuff for lightning NOx
+     REAL, DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: ht, ic_flashrate, cg_flashrate
+! end stuff for lightning NOx
 !
 ! Local variables...
 !
@@ -1381,6 +1388,31 @@ CONTAINS
        call wrf_debug(15,'emissions_driver NOT CALLING aer add_... routines')
 
     END SELECT aer_addemiss_select
+
+! Lightning NO emission
+    CALL lightning_nox_driver ( &
+          ! Frequently used prognostics
+            itimestep=ktau, dt=dtstep, dx=dx, dy=dx,                &
+            xlat=xlat, xlon=xlong, xland=xland, ht=ht,                &
+            t_phy=t_phy, p_phy=p_phy, rho=rho_phy, u=u_phy, v=v_phy, w=vvel,        &
+            z=z, z_at_w=z_at_w, moist=moist,                         &
+            ic_flashrate=ic_flashrate, cg_flashrate=cg_flashrate,    &
+          ! Mandatory namelist inputs
+            lightning_option=config_flags%lightning_option,          &
+            lightning_dt=config_flags%lightning_dt,                  &
+            lightning_start_seconds=config_flags%lightning_start_seconds,                    &
+            N_IC=config_flags%N_IC, N_CG=config_flags%N_CG,          &
+            lnox_opt=config_flags%lnox_opt, lnox_passive=config_flags%lnox_passive, &
+          ! Order dependent args for domain, mem, and tile dims
+            ids=ids, ide=ide, jds=jds, jde=jde, kds=kds, kde=kde,         &
+            ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme,         &
+            its=its, ite=ite, jts=jts, jte=jte, kts=kts, kte=kte,         &
+          ! outputs
+            c_no=chem(:,:,:,p_no),                                 & ! NO concentration
+            lnox_total=tracer(:,:,:,p_lnox_total),       &
+            lnox_ic=tracer(:,:,:,p_lnox_ic),             &
+            lnox_cg=tracer(:,:,:,p_lnox_cg)          &
+          )
 
     END subroutine emissions_driver
 

@@ -295,6 +295,7 @@ start_em.o:     module_bc_em.o \
 		../share/module_date_time.o \
 		../phys/module_physics_init.o \
 		../phys/module_diagnostics.o \
+        ../phys/module_lightning_driver.o \
 		$(CF)
 
 solve_em.o:     module_small_step_em.o \
@@ -319,7 +320,8 @@ solve_em.o:     module_small_step_em.o \
 		../share/module_bc.o \
 		../phys/module_microphysics_driver.o \
 		../phys/module_microphysics_zero_out.o \
-		../phys/module_physics_addtendc.o
+		../phys/module_physics_addtendc.o \
+        ../phys/module_lightning_driver.o
 
 module_first_rk_step_part1.o : \
                 module_force_scm.o \

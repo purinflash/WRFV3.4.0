@@ -42,7 +42,7 @@
 #ifdef WRF_CHEM
                              ,lnox_opt,lnox_passive                    &
                             ! LNOx tracers (chemistry only)
-                             ,lnox_total, lnox_ic, lnox_cg
+                             ,lnox_total, lnox_ic, lnox_cg             &
 #endif
                             )
 !-----------------------------------------------------------------
@@ -56,19 +56,20 @@
  REAL,     INTENT(IN)        :: dt
  INTEGER,  INTENT(IN)        :: cu_physics,lightning_option
  REAL,     INTENT(IN)        :: lightning_dt, lightning_start_seconds
- REAL,     INTENT(IN)        :: iccg_prescribed_num, iccg_prescribed_num
+ REAL,     INTENT(IN)        :: iccg_prescribed_num, iccg_prescribed_den
  INTEGER , INTENT(IN)        :: ids, ide, jds, jde, kds, kde,  &
                                 ims, ime, jms, jme, kms, kme,  &
                                 its, ite, jts, jte, kts, kte
 
 ! Making these optional just in case qualitative lightning indices get implemented
- REAL, OPTIONAL, DIMENSION( ims:ime,kms:kme,jms:jme ), &
+ REAL, OPTIONAL, DIMENSION( ims:ime,jms:jme ), &
                  INTENT(OUT) :: ic_flashcount, ic_flashrate, &
                                 cg_flashcount, cg_flashrate
 
 #ifdef WRF_CHEM
  INTEGER, INTENT(IN)         :: lnox_opt
- REAL, OPTIONAL, DIMENSION( ims:me,kms:kme,jms:jme ), &
+ LOGICAL, INTENT(IN)         :: lnox_passive
+ REAL, OPTIONAL, DIMENSION( ims:ime,kms:kme,jms:jme ), &
                  INTENT(OUT) :: lnox_total, lnox_ic, lnox_cg
 #endif
 
@@ -104,7 +105,7 @@
     ! Convective resolved/permitted
     CASE (ltng_crm_PR92w)
         WRITE(message, * ) ' lightning_init: CRM lightning option used: ', lightning_option
-        CALL wrf_debug ( 200 , message )
+        CALL wrf_debug ( 100 , message )
 
     ! Convective parameterized
     CASE (ltng_cpm_PR92z)
@@ -113,7 +114,7 @@
         ENDIF
 
         WRITE(message, * ) ' lightning_init: CPM lightning option selected: ', lightning_option
-        CALL wrf_debug ( 200 , message )
+        CALL wrf_debug ( 100 , message )
 
     ! Non-existing options
     CASE DEFAULT
@@ -126,12 +127,12 @@
 !-- zero out arrays
  IF ( PRESENT( ic_flashcount ) .and. PRESENT( ic_flashrate ) .and. &
       PRESENT( cg_flashcount ) .and. PRESENT( cg_flashrate ) ) THEN
-    CALL wrf_debug ( 200 , ' lightning_init: flash initializing lightning flash arrays' )
+    CALL wrf_debug ( 100 , ' lightning_init: flash initializing lightning flash arrays' )
 
-    ic_flashrate(:,:,:)  = 0.
-    ic_flashcount(:,:,:) = 0.
-    cg_flashrate(:,:,:)  = 0.
-    cg_flashcount(:,:,:) = 0.
+    ic_flashrate(:,:)  = 0.
+    ic_flashcount(:,:) = 0.
+    cg_flashrate(:,:)  = 0.
+    cg_flashcount(:,:) = 0.
  ELSE
     CALL wrf_error_fatal ( ' lightning_init: flash arrays not present' )
  ENDIF
@@ -216,7 +217,7 @@
  REAL,    INTENT(IN   )    ::       dt, dx, dy
 
  REAL,    DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: xlat, xlon, xland, ht
- REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: t_phy, t_phy, rho
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: t_phy, p_phy, rho
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: u, v, w, z
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme, num_moist), INTENT(IN   ) :: moist
 
@@ -242,8 +243,8 @@
  INTEGER, INTENT(IN   )    ::       its,ite, jts,jte, kts,kte
 
 ! Mandatory outputs for all quantitative schemes
- REAL, OPTIONAL, DIMENSION( ims:ime,          jms:jme ), INTENT(INOUT) :: ic_flashcount , cg_flashcount
- REAL, OPTIONAL, DIMENSION( ims:ime,          jms:jme ), INTENT(  OUT) :: ic_flashrate  , cg_flashrate
+ REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: ic_flashcount , cg_flashcount
+ REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(  OUT) :: ic_flashrate  , cg_flashrate
 
 ! Local variables
  REAL, DIMENSION( ims:ime, jms:jme ) :: total_flashrate
@@ -282,7 +283,7 @@
                     ims, ime, jms, jme, kms, kme,     &
                     its, ite, jts, jte, kts, kte,     &
                   ! Mandatory output for all quantitative schemes
-                    total_flashrate
+                    total_flashrate                   &
                   )
 
 !   CASE ( another_cpm_option)
@@ -300,13 +301,13 @@
  CALL wrf_debug ( 100, ' lightning_driver: partitioning IC:CG')
  iccg_select: SELECT CASE(iccg_method)
     ! Flash rate option defaults
-    CASE( 0 )
-        CALL wrf_debug( 100, ' lightning_driver: using option-default IC:CG method'
+    CASE( 0 ) iccg_select
+        CALL wrf_debug( 100, ' lightning_driver: using option-default IC:CG method' )
         iccg_method_default: SELECT CASE(lightning_option)
 
-            CASE( ltng_crm_PR92w,ltng_cpm_PR92z )
+            CASE( ltng_crm_PR92w, ltng_cpm_PR92z ) iccg_method_default
                 CALL iccg_boccippio( &
-                            xlat, xlon                                 &
+                            xlat, xlon,                                &
                             iccg_prescribed_num, iccg_prescribed_den,  &
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,              &
@@ -318,9 +319,9 @@
                             ic_flashrate, cg_flashrate                 &
                           )
 
-            CASE DEFAULT
+            CASE DEFAULT iccg_method_default
                 CALL wrf_debug ( 100, ' lightning_driver: no method-default IC:CG implemented, using user-prescribed constant')
-                CALL iccg_prescribed( &
+                CALL iccg_user_prescribed( &
                             iccg_prescribed_num,                  &
                             iccg_prescribed_den,                  &
                           ! Order dependent args for domain, mem, and tile dims
@@ -336,10 +337,10 @@
         END SELECT iccg_method_default
 
     ! Used-prescribed constant
-    CASE( 1 )
+    CASE( 1 ) iccg_select
         WRITE(message, * ) ' lightning_driver: using user-prescribed IC:CG ratio = ', iccg_prescribed_num, iccg_prescribed_den
         CALL wrf_debug ( 100, message )
-        CALL iccg_prescribed( &
+        CALL iccg_user_prescribed( &
                     iccg_prescribed_num,                  &
                     iccg_prescribed_den,                  &
                   ! Order dependent args for domain, mem, and tile dims
@@ -353,10 +354,10 @@
                   )
 
     ! Boccippio et al, 2001
-    CASE( 2 )
+    CASE( 2 ) iccg_select
         CALL wrf_debug ( 100, ' lightning_driver: using Boccippio 2001 IC:CG climatology')
         CALL iccg_boccippio( &
-                    xlat, xlon                                 &
+                    xlat, xlon,                                &
                     iccg_prescribed_num, iccg_prescribed_den,  &
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,              &
@@ -369,7 +370,7 @@
                   )
 
     ! Price and Rind, 1993
-    CASE( 3 )
+    CASE( 3 ) iccg_select
         CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio')
         CALL iccg_pr93( &
                     ktop_deep, cldtop_adjustment, t_phy, z,    &
@@ -384,7 +385,7 @@
                 )
 
     ! Invalid IC:CG method
-    CASE DEFAULT
+    CASE DEFAULT iccg_select
         WRITE(wrf_err_message, * ) ' lightning_driver: Invalid IC:CG method (iccg_method) = ', lightning_option
         CALL wrf_error_fatal ( wrf_err_message )
 
@@ -394,11 +395,16 @@
 
  CALL wrf_debug( 200, ' lightning_driver: converting flash rate to total')
 
- ic_flashcount(its:ite,jts:jte) = ic_flashcount(its:ite,jts:jte) + ic_flashrate(its:ite,jts:jte) * flashrate_factor * lightning_dt
- cg_flashcount(its:ite,jts:jte) = cg_flashcount(its:ite,jts:jte) + cg_flashrate(its:ite,jts:jte) * flashrate_factor * lightning_dt
+ ic_flashrate(its:ite,jts:jte) = ic_flashrate(its:ite,jts:jte) * flashrate_factor
+ cg_flashrate(its:ite,jts:jte) = cg_flashrate(its:ite,jts:jte) * flashrate_factor
+
+ ic_flashcount(its:ite,jts:jte) = ic_flashcount(its:ite,jts:jte) + ic_flashrate(its:ite,jts:jte) * lightning_dt
+ cg_flashcount(its:ite,jts:jte) = cg_flashcount(its:ite,jts:jte) + cg_flashrate(its:ite,jts:jte) * lightning_dt
 
 !-----------------------------------------------------------------
 
  CALL wrf_debug ( 100, ' lightning_driver: returning from')
 
  END SUBROUTINE lightning_driver
+
+ END MODULE module_lightning_driver

@@ -16,7 +16,8 @@
 !
 !**********************************************************************
  MODULE module_lightning_nox_defaults
-  CONTAINS
+
+ IMPLICIT NONE
 
 ! Ott et al, 2010 Vertical distribution
   INTEGER,                  PARAMETER, PRIVATE :: vds = 0
@@ -30,6 +31,8 @@
        ott_trpcon(vde+1)  = (/ .002,.005,.006,.014,.027,.040,.050,.062,.086,.103,.116,.124,.127,.124,.076,.030,.008 /)
   REAL, DIMENSION(vds:vde), PARAMETER, PRIVATE :: & ! tropical marine
        ott_trpmar(vde+1)  = (/ .006,.015,.029,.043,.054,.067,.066,.085,.096,.102,.105,.102,.082,.065,.045,.022,.005 /)
+
+ CONTAINS
 
 !**********************************************************************
 !
@@ -80,7 +83,7 @@
  INTEGER, INTENT(IN   )    ::       its,ite, jts,jte, kts,kte
 
 ! Output
- REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: lnox_total_tend
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(  OUT) :: lnox_total_tend
 
 ! Local variables
  INTEGER :: i,k,j
@@ -102,14 +105,14 @@
 
      ! Calculate column LNO (moles)
      total_NO = ic_flashrate(I,J)*N_IC + cg_flashrate(I,J)*N_CG
-     IF total_NO .eq. 0. THEN CONTINUE
+     IF ( total_NO .eq. 0. ) CONTINUE
 
      ! Calculate vertical distribution in moles/km in z (/s)
      IF ( xlat(I,J) .gt. subtrop_midlat ) THEN
        NOperkm(:) = ott_midlat(:) * total_NO
      ELSE IF ( xlat(I,J) .gt. trop_subtrop ) THEN
        NOperkm(:) = ott_subtrop(:) * total_NO
-     ELSE IF ( xland .gt. 1.5 ) THEN
+     ELSE IF ( xland(I,J) .gt. 1.5 ) THEN
        NOperkm(:) = ott_trpcon(:) * total_NO
      ELSE
        NOperkm(:) = ott_trpmar(:) * total_NO
@@ -125,7 +128,7 @@
      v = MAX( vds, int(zkm(k)) )
      DO WHILE ( (v .le. vde) .and. (k .le. kte) )
        mass_of_air = rho(i,k,j) * 1E3 * dA / .02897       ! # mol air /km in z
-       lnox_total_tend(i,k,j) = NOperkm(v)/airmass * 1E6  ! ppmv (/s)
+       lnox_total_tend(i,k,j) = NOperkm(v)/mass_of_air * 1E6  ! ppmv (/s)
 
        k = k + 1
        IF ( int(zkm(k)) .gt. v ) v = int( zkm(k) )

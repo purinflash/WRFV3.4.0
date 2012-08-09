@@ -22,13 +22,11 @@
                             t_phy, p_phy, rho, u, v, w,           &
                             z, z_at_w, moist,                     & ! z_at_w(n) = [ z(n-1) + z(n) ]/2
                             ic_flashrate, cg_flashrate,           &
-                          ! Scheme specific prognostics
                           ! Mandatory namelist inputs
                             lightning_option, lightning_dt,       &
                             lightning_start_seconds,              &
                             N_IC, N_CG,                           &
                             lnox_opt, lnox_passive,               &
-                          ! Scheme specific namelist inputs
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,         &
                             ims, ime, jms, jme, kms, kme,         &
@@ -56,7 +54,7 @@
  REAL,    INTENT(IN   )    ::       dt, dx, dy
 
  REAL,    DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: xlat, xlon, xland, ht
- REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: t_phy, t_phy, rho
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: t_phy, p_phy, rho
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: u, v, w, z, z_at_w
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme, num_moist), INTENT(IN   ) :: moist
 
@@ -68,7 +66,8 @@
  INTEGER, INTENT(IN   )    ::       lightning_option
  REAL,    INTENT(IN   )    ::       lightning_dt, lightning_start_seconds
  REAL,    INTENT(IN   )    ::       N_IC, N_CG
- INTEGER, INTENT(IN   )    ::       lnox_opt, lnox_passive
+ INTEGER, INTENT(IN   )    ::       lnox_opt
+ LOGICAL, INTENT(IN   )    ::       lnox_passive
 
 ! IC:CG namelist settings
 
@@ -81,11 +80,11 @@
 
 ! Mandatory inputs for all quantitative schemes
  REAL,           DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) :: c_no
- REAL, OPTIONAL, DIMENSION( ims:ime,          jms:jme ), INTENT(INOUT) :: lnox_total,lnox_ic,lnox_cg
+ REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(INOUT) :: lnox_total,lnox_ic,lnox_cg
 
 ! Local variables
- REAL,           DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: lnox_total_tend
- REAL,           DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: lnox_ic_tend, lnox_cg_tend
+ REAL, DIMENSION( ims:ime, kms:kme, jms:jme ) :: lnox_total_tend
+ REAL, DIMENSION( ims:ime, kms:kme, jms:jme ) :: lnox_ic_tend, lnox_cg_tend
 
  CHARACTER (LEN=80) :: message
 
@@ -104,7 +103,7 @@
 
  lnox_select: SELECT CASE(lnox_opt)
   
-   CASE lnox_opt_ott
+   CASE(lnox_opt_ott)
       CALL lightning_nox_ott ( &
               ! Frequently used prognostics
                 dx, dy, xlat, xland, ht, rho, z,      &
@@ -119,7 +118,7 @@
                 lnox_total_tend                       & ! tendency (ppmv/s)
               )
 
-   CASE lnox_opt_flat
+   CASE(lnox_opt_flat)
 
     ! Invalid lightning NOx options
     CASE DEFAULT
@@ -131,16 +130,16 @@
  CALL wrf_debug( 200, ' lightning_nox_driver: adding tendency to NO and passive tracers')
 
  IF ( PRESENT(lnox_total) ) THEN
-   lnox_total(its:ite,kts:kte,jts:jte) = lnox_total((its:ite,kts:kte,jts:jte)) + &
+   lnox_total(its:ite,kts:kte,jts:jte) = lnox_total(its:ite,kts:kte,jts:jte) + &
                                              lnox_total_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   IF ( lnox_passive .eq. 0 ) THEN
+   IF ( .not.lnox_passive ) THEN
      c_no(its:ite,kts:kte,jts:jte) = c_no(its:ite,kts:kte,jts:jte) + &
                                              lnox_total_tend(its:ite,kts:kte,jts:jte) * lightning_dt
    ENDIF
- ELSE THEN
-   lnox_ic(its:ite,kts:kte,jts:jte) = lnox_ic((its:ite,kts:kte,jts:jte)) + lnox_ic_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   lnox_cg(its:ite,kts:kte,jts:jte) = lnox_cg((its:ite,kts:kte,jts:jte)) + lnox_cg_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   IF ( lnox_passive .eq. 0 ) THEN
+ ELSE
+   lnox_ic(its:ite,kts:kte,jts:jte) = lnox_ic(its:ite,kts:kte,jts:jte) + lnox_ic_tend(its:ite,kts:kte,jts:jte) * lightning_dt
+   lnox_cg(its:ite,kts:kte,jts:jte) = lnox_cg(its:ite,kts:kte,jts:jte) + lnox_cg_tend(its:ite,kts:kte,jts:jte) * lightning_dt
+   IF ( .not.lnox_passive ) THEN
      c_no(its:ite,kts:kte,jts:jte) = c_no(its:ite,kts:kte,jts:jte) + &
                                       ( lnox_ic_tend(its:ite,kts:kte,jts:jte) + &
                                         lnox_cg_tend(its:ite,kts:kte,jts:jte) ) * lightning_dt

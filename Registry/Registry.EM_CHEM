@@ -14,6 +14,7 @@ include registry.cam
 include registry.ssib
 include registry.diags
 include registry.lightning
+include registry.lnox
 
 state   real   landmask            ij    misc          1     -     i012rh0d=(interp_fcnm)u=(copy_fcnm)   "LANDMASK"      "LAND MASK (1 FOR LAND, 0 FOR WATER)"  ""
 

@@ -56,13 +56,13 @@
  cg_flashrate(ips:ipe,jps:jpe) = 0.
 
 ! All IC
- IF iccg_prescribed_den .eq. 0. THEN
+ IF ( iccg_prescribed_den .eq. 0. ) THEN
     ic_flashrate(ips:ipe,jps:jpe) = total_flashrate(ips:ipe,jps:jpe)
     RETURN
  ENDIF
 
 ! All CG
- IF iccg_prescribed_num .eq. 0. THEN
+ IF ( iccg_prescribed_num .eq. 0. ) THEN
     cg_flashrate(ips:ipe,jps:jpe) = total_flashrate(ips:ipe,jps:jpe)
     RETURN
  ENDIF
@@ -91,7 +91,7 @@
 !
 !**********************************************************************
  SUBROUTINE iccg_boccippio( &
-                            xlat, xlon                                 &
+                            xlat, xlon,                                &
                             iccg_prescribed_num, iccg_prescribed_den,  &
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,              &
@@ -206,7 +206,7 @@
  REAL,    DIMENSION( ims:ime,          jms:jme ), INTENT(  OUT) :: ic_flashrate, cg_flashrate
 
 ! Local variables
- INTEGER, DIMENSION( ims:ime,          jms:jme ), INTENT(IN   ) :: kfreeze
+ INTEGER :: kfreeze
 
  INTEGER :: i,j,k
  REAL    :: ratio, cgfrac, depth
@@ -229,12 +229,12 @@
     IF ( total_flashrate(i,j) .gt. 0.) THEN
 
         ! Look for freezing level
-        kfreeze = kLNB
+        kfreeze = kLNB(i,j)
         DO WHILE ( t(i,kfreeze,j) .lt. 273.15 )
             kfreeze = kfreeze - 1
         ENDDO
 
-        depth = ( z(i,kLNB,j) - z(i,kfreeze,j) ) * 1E-3 + cldtop_adjustment
+        depth = ( z(i,kLNB(i,j),j) - z(i,kfreeze,j) ) * 1E-3 + cldtop_adjustment
         IF (depth .le. 0.) CONTINUE
         depth = max( dH_min, min( dH_max, depth ))
 
