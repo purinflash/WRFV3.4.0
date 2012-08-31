@@ -6,8 +6,8 @@
 ! History:
 !   3.4.1 - rewritten and added init, separate out flash rate
 !           parameterization from emission
-!   3.3.x - lightning_driver written by M. Barth called in
-!           emission_driver in chem
+!   3.3.x - lightning_driver written by M. Barth and L. Ott. Called
+!           in emission_driver in chem
 !
 ! Contact: J. Wong <johnwong@ucar.edu>
 !
@@ -20,13 +20,18 @@
                             itimestep, dt, dx, dy,                &
                             xlat, xlon, xland, ht,                &
                             t_phy, p_phy, rho, u, v, w,           &
-                            z, z_at_w, moist,                     & ! z_at_w(n) = [ z(n-1) + z(n) ]/2
+                            z, moist,                             &
                             ic_flashrate, cg_flashrate,           &
+                          ! Scheme specific prognostics
+                            refl,                                 &
                           ! Mandatory namelist inputs
                             lightning_option, lightning_dt,       &
                             lightning_start_seconds,              &
                             N_IC, N_CG,                           &
                             lnox_opt, lnox_passive,               &
+                          ! Scheme specific namelist inputs
+                            ltng_temp_upper,ltng_temp_lower,      &
+                            cellcount_method,                     & ! This is in the physics namelist
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,         &
                             ims, ime, jms, jme, kms, kme,         &
@@ -44,7 +49,8 @@
  USE module_wrf_error
 
 ! Methods
- USE module_lightning_nox_defaults
+ USE module_lightning_nox_ott
+ USE module_lightning_nox_decaria, only: lightning_nox_decaria
 
  IMPLICIT NONE
 !-----------------------------------------------------------------
@@ -55,12 +61,13 @@
 
  REAL,    DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: xlat, xlon, xland, ht
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: t_phy, p_phy, rho
- REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: u, v, w, z, z_at_w
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: u, v, w, z
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme, num_moist), INTENT(IN   ) :: moist
 
  REAL,    DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: ic_flashrate  , cg_flashrate ! #/sec
 
 ! Scheme specific prognostics
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: refl
 
 ! Mandatory namelist inputs
  INTEGER, INTENT(IN   )    ::       lightning_option
@@ -69,9 +76,9 @@
  INTEGER, INTENT(IN   )    ::       lnox_opt
  LOGICAL, INTENT(IN   )    ::       lnox_passive
 
-! IC:CG namelist settings
-
 ! Scheme specific namelist inputs
+ REAL,    INTENT(IN   )    ::       ltng_temp_upper, ltng_temp_lower
+ INTEGER, INTENT(IN   )    ::       cellcount_method
 
 ! Order dependent args for domain, mem, and tile dims
  INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
@@ -118,14 +125,33 @@
                 lnox_total_tend                       & ! tendency (ppmv/s)
               )
 
-   CASE(lnox_opt_flat)
-
+   CASE(lnox_opt_decaria)
+      CALL lightning_nox_decaria ( &
+              ! Frequently used prognostics
+                dx, dy, xland, ht, t, rho, z, p,      &
+                ic_flashrate, cg_flashrate,           & ! flashes (#/s)
+              ! Scheme specific prognostics
+                refl,                                 &
+              ! Namelist inputs
+                N_IC, N_CG,                           &
+                ltng_temp_upper,ltng_temp_lower,      &
+                cellcount_method,                     &
+              ! Order dependent args for domain, mem, and tile dims
+                ids, ide, jds, jde, kds, kde,         &
+                ims, ime, jms, jme, kms, kme,         &
+                its, ite, jts, jte, kts, kte,         &
+              ! outputs
+                lnox_ic_tend, lnox_cg_tend            & ! tendency (ppmv/s)
+              )
     ! Invalid lightning NOx options
     CASE DEFAULT
         WRITE(wrf_err_message, * ) ' lightning_nox_driver: The lightning nox option does not exist: lnox_opt = ', lnox_opt
         CALL wrf_error_fatal ( wrf_err_message )
 
  END SELECT lnox_select
+
+
+!-----------------------------------------------------------------
 
  CALL wrf_debug( 200, ' lightning_nox_driver: adding tendency to NO and passive tracers')
 

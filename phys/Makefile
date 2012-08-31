@@ -8,6 +8,7 @@ RM      =       rm -f
 MODULES = \
     module_lightning_driver.o \
         module_ltng_cpmpr92z.o \
+        module_ltng_crmpr92.o \
         module_ltng_iccg.o \
 	module_cam_shr_kind_mod.o \
 	module_cam_support.o \
@@ -687,9 +688,11 @@ module_mp_wsm3.o :\
 		module_mp_wsm3_accel.F
 
 module_lightning_driver.o : \
-        module_ltng_cpmpr92z.o module_ltng_iccg.o
+        module_ltng_crmpr92.o module_ltng_cpmpr92z.o module_ltng_iccg.o
 
 module_ltng_cpmpr92z.o :
+
+module_ltng_crmpr92.o :
 
 module_ltng_iccg.o :
 

@@ -7,7 +7,8 @@ RM      =       rm -f
 
 MODULES =                           \
   module_lightning_nox_driver.o     \
-  module_lightning_nox_defaults.o   \
+  module_lightning_nox_ott.o        \
+  module_lightning_nox_decaria.o    \
   module_chem_utilities.o           \
   module_data_radm2.o               \
   module_data_sorgam.o              \
@@ -308,9 +309,11 @@ module_wetscav_driver.o: module_mosaic_wetscav.o module_aerosols_sorgam.o module
 
 module_sorgam_aqchem.o: module_ctrans_aqchem.o module_data_sorgam.o
 
-module_lightning_nox_defaults.o:
+module_lightning_nox_ott.o:
 
-module_lightning_nox_driver.o: module_lightning_nox_defaults.o
+module_lightning_nox_decaria.o: ../phys/module_lightning_driver.o
+
+module_lightning_nox_driver.o: module_lightning_nox_ott.o module_lightning_nox_decaria.o
 
 convert_emiss : convert_emiss.o
 	$(RANLIB) ../main/$(LIBWRFLIB)

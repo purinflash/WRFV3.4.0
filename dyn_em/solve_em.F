@@ -3454,12 +3454,12 @@ BENCH_START(moist_phys_end_tim)
   IF ( config_flags%lightning_option /= 0 ) THEN
     CALL lightning_driver ( &
           ! Frequently used prognostics
-            grid%itimestep, grid%dt, grid%dx, grid%dy,                &
-            grid%xlat, grid%xlong, grid%xland, grid%ht,                &
-            grid%t_phy, p_phy, rho, u_phy, v_phy, grid%w_2,     &
-            grid%z, moist,                             &
+            grid%itimestep, grid%dt, grid%dx, grid%dy,         &
+            grid%xlat, grid%xlong, grid%xland, grid%ht,        &
+            grid%t_phy, p_phy, rho, u_phy, v_phy, grid%w_2,    &
+            grid%z, moist,                                     &
           ! Scheme specific prognostics
-            grid%ktop_deep,                                    &
+            grid%ktop_deep, grid%refl_10cm,                    &
           ! Mandatory namelist inputs
             config_flags%lightning_option,                     &
             config_flags%lightning_dt,                         &

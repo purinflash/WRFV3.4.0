@@ -50,7 +50,7 @@ CONTAINS
          current_month,                                                    &
          ! end stuff for MEGAN v2.04
          ! stuff for LNOx emissions
-         ht,                                                               &
+         ht, refl_10cm,                                                    &
          ic_flashrate, cg_flashrate,                                       &
          ! end stuff for LNOx emissions
          ! stuff for aircraft emissions
@@ -277,6 +277,7 @@ CONTAINS
 ! end ghg tracer stuff
 ! stuff for lightning NOx
      REAL, DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: ht, ic_flashrate, cg_flashrate
+     REAL, DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: refl_10cm
 ! end stuff for lightning NOx
 !
 ! Local variables...
@@ -1395,14 +1396,20 @@ CONTAINS
             itimestep=ktau, dt=dtstep, dx=dx, dy=dx,                &
             xlat=xlat, xlon=xlong, xland=xland, ht=ht,                &
             t_phy=t_phy, p_phy=p_phy, rho=rho_phy, u=u_phy, v=v_phy, w=vvel,        &
-            z=z, z_at_w=z_at_w, moist=moist,                         &
+            z=z, moist=moist,                         &
             ic_flashrate=ic_flashrate, cg_flashrate=cg_flashrate,    &
+          ! Scheme specific prognostics
+            refl=refl_10cm,                                     &
           ! Mandatory namelist inputs
             lightning_option=config_flags%lightning_option,          &
             lightning_dt=config_flags%lightning_dt,                  &
             lightning_start_seconds=config_flags%lightning_start_seconds,                    &
             N_IC=config_flags%N_IC, N_CG=config_flags%N_CG,          &
             lnox_opt=config_flags%lnox_opt, lnox_passive=config_flags%lnox_passive, &
+          ! Scheme specific namelist inputs
+            ltng_temp_upper=config_flags%ltng_temp_upper,                 &
+            ltng_temp_lower=config_flags%ltng_temp_lower,                 &
+            cellcount_method=config_flags%cellcount_method,               &
           ! Order dependent args for domain, mem, and tile dims
             ids=ids, ide=ide, jds=jds, jde=jde, kds=kds, kde=kde,         &
             ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme,         &

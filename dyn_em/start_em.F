@@ -806,14 +806,15 @@
 #endif
 
    call wrf_debug(100,'start_em: calling lightning_init')
-   CALL lightning_init ( itimestep=grid%itimestep, restart=grid%restart, dt=grid%dt               &
+   CALL lightning_init ( itimestep=grid%itimestep, restart=grid%restart, dt=grid%dt, dx=grid%dx   &
                     ! Namelist control options
-                        ,cu_physics=config_flags%cu_physics                                       &
+                        ,cu_physics=config_flags%cu_physics,mp_physics=config_flags%mp_physics    &
                         ,lightning_option=config_flags%lightning_option                           &
                         ,lightning_dt=config_flags%lightning_dt                                   &
                         ,lightning_start_seconds=config_flags%lightning_start_seconds             &
                         ,iccg_prescribed_num=config_flags%iccg_prescribed_num                     &
                         ,iccg_prescribed_den=config_flags%iccg_prescribed_den                     &
+                        ,cellcount_method=config_flags%cellcount_method                           &
                     ! Order dependent args for domain, mem, and tile dims
                         ,ids=ids, ide=ide, jds=jds, jde=jde, kds=kds, kde=kde             &
                         ,ims=ims, ime=ime, jms=jms, jme=jme, kms=kms, kme=kme             &

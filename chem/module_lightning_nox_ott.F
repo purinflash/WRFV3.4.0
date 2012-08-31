@@ -1,6 +1,6 @@
 !WRF:MODEL_LAYER:CHEMISTRY
 !
-! Contains subroutines for converting flash rates into NO emissions
+! Contains subroutine for converting flash rates into NO emissions
 ! based on prescribed vertical distirbutions. Subroutines should behave
 ! the following way:
 !
@@ -15,22 +15,9 @@
 ! Contact: J. Wong <johnwong@ucar.edu>
 !
 !**********************************************************************
- MODULE module_lightning_nox_defaults
+ MODULE module_lightning_nox_ott
 
  IMPLICIT NONE
-
-! Ott et al, 2010 Vertical distribution
-  INTEGER,                  PARAMETER, PRIVATE :: vds = 0
-  INTEGER,                  PARAMETER, PRIVATE :: vde = 16
-                             ! 0   1    2    3    4   5     6    7    8    9   10    11   12   13   14   15   16   17
-  REAL, DIMENSION(vds:vde), PARAMETER, PRIVATE :: &
-       ott_subtrop(vde+1) = (/ .010,.020,.039,.058,.077,.093,.105,.110,.110,.104,.092,.075,.055,.034,.015,.002,.000 /)
-  REAL, DIMENSION(vds:vde), PARAMETER, PRIVATE :: &
-       ott_midlat(vde+1)  = (/ .024,.050,.074,.093,.106,.114,.115,.110,.099,.083,.063,.042,.022,.005,.000,.000,.000 /)
-  REAL, DIMENSION(vds:vde), PARAMETER, PRIVATE :: & ! tropical continental
-       ott_trpcon(vde+1)  = (/ .002,.005,.006,.014,.027,.040,.050,.062,.086,.103,.116,.124,.127,.124,.076,.030,.008 /)
-  REAL, DIMENSION(vds:vde), PARAMETER, PRIVATE :: & ! tropical marine
-       ott_trpmar(vde+1)  = (/ .006,.015,.029,.043,.054,.067,.066,.085,.096,.102,.105,.102,.082,.065,.045,.022,.005 /)
 
  CONTAINS
 
@@ -41,6 +28,11 @@
 ! Ott, L. E. et al (2010), Production of lightning NOx and its vertical
 ! distribution calculated from three-dimensional cloud-scale chemical
 ! transport model simulations, J. Geophys. Res., 115, D04301, doi:10.1029/2009JD011880.
+!
+! Usage note: This method consolidates IC and CG flash rates but scales
+! each category based on N_IC and N_CG. Thus by setting N_IC=N_CG, the
+! perturbation on NO emission would become agnostic to the IC:CG
+! partitioning method.
 !
 !**********************************************************************
  SUBROUTINE lightning_nox_ott ( &
@@ -96,9 +88,23 @@
  REAL, PARAMETER :: subtrop_midlat = 35.
  REAL, PARAMETER :: trop_subtrop = 20.
 
+! Vertical distribution data
+  INTEGER,                  PARAMETER :: vds = 0
+  INTEGER,                  PARAMETER :: vde = 16
+                             ! 0   1    2    3    4   5     6    7    8    9   10    11   12   13   14   15   16   17
+  REAL, DIMENSION(vds:vde), PARAMETER :: &
+       ott_subtrop(vde+1) = (/ .010,.020,.039,.058,.077,.093,.105,.110,.110,.104,.092,.075,.055,.034,.015,.002,.000 /)
+  REAL, DIMENSION(vds:vde), PARAMETER :: &
+       ott_midlat(vde+1)  = (/ .024,.050,.074,.093,.106,.114,.115,.110,.099,.083,.063,.042,.022,.005,.000,.000,.000 /)
+  REAL, DIMENSION(vds:vde), PARAMETER :: & ! tropical continental
+       ott_trpcon(vde+1)  = (/ .002,.005,.006,.014,.027,.040,.050,.062,.086,.103,.116,.124,.127,.124,.076,.030,.008 /)
+  REAL, DIMENSION(vds:vde), PARAMETER :: & ! tropical marine
+       ott_trpmar(vde+1)  = (/ .006,.015,.029,.043,.054,.067,.066,.085,.096,.102,.105,.102,.082,.065,.045,.022,.005 /)
+
 !-----------------------------------------------------------------
 
  lnox_total_tend(its:ite,kts:kte,jts:jte) = 0.
+ dA = dx * dy
 
  DO J=jts,jte
    DO I=its,ite
@@ -123,7 +129,6 @@
      !   are assumed to be within discrete km levels according to the middle
      !   AGL height. Improves with finer vertical discretization
      k = kts
-     dA = dx * dy
      zkm(kts:kte) = ( z(i,kts:kte,j) - ht(i,j) ) / 1000.
      v = MAX( vds, int(zkm(k)) )
      DO WHILE ( (v .le. vde) .and. (k .le. kte) )
@@ -138,4 +143,5 @@
 
  END SUBROUTINE lightning_nox_ott
 
- END MODULE module_lightning_nox_defaults
+
+ END MODULE module_lightning_nox_ott

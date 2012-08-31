@@ -4,8 +4,9 @@
 ! lightning_driver.
 !
 ! History:
-!   3.4.1 - rewritten and added init, separate out flash rate
+!   3.5?  - rewritten and added init, separate out flash rate
 !           parameterization from emission
+!   3.4.0 - Added cpm option
 !   3.3.x - lightning_driver written by M. Barth called in
 !           emission_driver in chem
 !
@@ -16,7 +17,6 @@
  MODULE module_lightning_driver
  CONTAINS
 
-
 !**********************************************************************
 !
 ! SUBROUTINE lightning_init
@@ -26,12 +26,13 @@
 !**********************************************************************
 
  SUBROUTINE lightning_init ( &
-                              itimestep, restart, dt                   &
+                              itimestep, restart, dt, dx               &
                             ! Namelist control options
-                             ,cu_physics                               &
+                             ,cu_physics,mp_physics                    &
                              ,lightning_option, lightning_dt           &
                              ,lightning_start_seconds                  &
                              ,iccg_prescribed_num, iccg_prescribed_den &
+                             ,cellcount_method                         &
                             ! Order dependent args for domain, mem, and tile dims
                              ,ids, ide, jds, jde, kds, kde             &
                              ,ims, ime, jms, jme, kms, kme             &
@@ -53,10 +54,11 @@
 
  INTEGER,  INTENT(IN)        :: itimestep
  LOGICAL,  INTENT(IN)        :: restart
- REAL,     INTENT(IN)        :: dt
- INTEGER,  INTENT(IN)        :: cu_physics,lightning_option
+ REAL,     INTENT(IN)        :: dt,dx
+ INTEGER,  INTENT(IN)        :: cu_physics,mp_physics,lightning_option
  REAL,     INTENT(IN)        :: lightning_dt, lightning_start_seconds
  REAL,     INTENT(IN)        :: iccg_prescribed_num, iccg_prescribed_den
+ INTEGER,  INTENT(INOUT)     :: cellcount_method
  INTEGER , INTENT(IN)        :: ids, ide, jds, jde, kds, kde,  &
                                 ims, ime, jms, jme, kms, kme,  &
                                 its, ite, jts, jte, kts, kte
@@ -103,7 +105,11 @@
  ltng_select: SELECT CASE(lightning_option)
 
     ! Convective resolved/permitted
-    CASE (ltng_crm_PR92w)
+    CASE (ltng_crm_PR92w,ltng_crm_PR92z)
+        IF ( mp_physics .eq. 0 ) THEN
+          CALL wrf_error_fatal( ' lightning_init: Selected lightning option requires microphysics option for reflectivity' )
+        ENDIF
+
         WRITE(message, * ) ' lightning_init: CRM lightning option used: ', lightning_option
         CALL wrf_debug ( 100 , message )
 
@@ -135,6 +141,18 @@
     cg_flashcount(:,:) = 0.
  ELSE
     CALL wrf_error_fatal ( ' lightning_init: flash arrays not present' )
+ ENDIF
+
+!-- Resolve auto-cellcount method option (cellcount_method=0)
+ IF ( ( cellcount_method .eq. 0 ) .and. (lightning_option .eq. ltng_crm_PR92w )) THEN
+   IF ( (ipe-ips+1)*dx .gt. 1E4 ) THEN ! use patch only if path size > 10 km
+     cellcount_method = 1
+     WRITE(message, * ) ' lightning_init: setting auto cellcount_method to patch (cellcount_method=1'
+   ELSE
+     cellcount_method = 2
+     WRITE(message, * ) ' lightning_init: setting auto cellcount_method to domain (cellcount_method=2'
+   ENDIF
+   CALL wrf_debug( 100, message )
  ENDIF
 
 #ifdef WRF_CHEM
@@ -172,6 +190,7 @@
                             z, moist,                             &
                           ! Scheme specific prognostics
                             ktop_deep,                            &
+                            refl,                                 &
                           ! Mandatory namelist inputs
                             lightning_option,                     &
                             lightning_dt,                         &
@@ -184,8 +203,6 @@
                           ! Scheme specific namelist inputs
                             cellcount_method,                     &
                             cldtop_adjustment,                    &
-                            ltng_temp_upper,                      &
-                            ltng_temp_lower,                      &
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,         &
                             ims, ime, jms, jme, kms, kme,         &
@@ -203,7 +220,8 @@
  USE module_wrf_error
 
 ! Parameterization options
-! USE module_ltng_pickering    ! lightning_option == 1,   ltng_crm_PR92w
+ USE module_ltng_crmpr92       ! lightning_option == 1,   ltng_crm_PR92w
+                               ! lightning_option == 2,   ltng_crm_PR92z
  USE module_ltng_cpmpr92z      ! lightning_option == 11,  ltng_cpm_PR92z
 
 ! IC:CG methods
@@ -223,6 +241,7 @@
 
 ! Scheme specific prognostics
  INTEGER, DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: ktop_deep     ! model LNB from cu_physics
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: refl          ! reflectivity from mp_physics
 
 ! Mandatory namelist inputs
  INTEGER, INTENT(IN   )    ::       lightning_option
@@ -235,7 +254,6 @@
 ! Scheme specific namelist inputs
  INTEGER, INTENT(IN   )    ::       cellcount_method                    ! used in CRM
  REAL,    INTENT(IN   )    ::       cldtop_adjustment                   ! used in CPM
- REAL,    INTENT(IN   )    ::       ltng_temp_upper,ltng_temp_lower     ! used in CRM
 
 ! Order dependent args for domain, mem, and tile dims
  INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
@@ -250,6 +268,12 @@
  REAL, DIMENSION( ims:ime, jms:jme ) :: total_flashrate
  CHARACTER (LEN=80) :: message
 
+#ifdef WRF_CHEM
+ REAL, PARAMETER            :: reflthreshold = 20. ! reflectivity threshold for CRM schemes
+ REAL, DIMENSION( kms:kme ) :: cellcount
+
+#endif
+
 !-----------------------------------------------------------------
 
  IF ( lightning_option .eq. 0 ) RETURN
@@ -257,6 +281,30 @@
  IF ( itimestep * dt .lt. lightning_start_seconds ) RETURN
 
  IF ( MOD((itimestep * dt - lightning_start_seconds), lightning_dt ) .ne. 0 ) RETURN
+
+!-----------------------------------------------------------------
+! This driver performs several steps in order to produce lightning
+! flash rate and flash count diagnostics:
+!
+! 1. Determine cloud extents for specific CRM schemes
+! 2. Total flash rate assignment to 2D array
+! 3. Partitioning of total lightning into IC & CG
+! 4. Scale flash rate by flashrate_factor and lightning_dt
+!
+!-----------------------------------------------------------------
+
+ IF ( lightning_option .eq. ltng_crm_PR92w ) THEN
+   CALL wrf_debug ( 100, ' lightning_driver: determining cloud extents for CRM' )
+   CALL countCells( &
+          ! Inputs
+            refl, reflthreshold, cellcount_method,     &
+          ! Order dependent args for domain, mem, and tile dims
+            ids, ide, jds, jde, kds, kde,              &
+            ims, ime, jms, jme, kms, kme,              &
+            ips, ipe, jps, jpe, kps, kpe,              &
+          ! Outputs
+            cellcount )
+ ENDIF
 
 !-----------------------------------------------------------------
 
@@ -267,6 +315,36 @@
     CASE( ltng_crm_PR92w )
         CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (w_max, CRM)' )
 
+        CALL ltng_crmpr92w ( &
+                  ! Frequently used prognostics
+                    dx, dy, xland, ht, z, t,              &
+                  ! Scheme specific prognostics
+                    w, refl, reflthreshold, cellcount     &
+                  ! Scheme specific namelist inputs
+                    cellcount_method,                     &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,         &
+                    ims, ime, jms, jme, kms, kme,         &
+                    ips, ipe, jps, jpe, kps, kpe,         &
+                  ! Mandatory output for all quantitative schemes
+                    total_flashrate                       &
+                  )
+    CASE( ltng_crm_PR92z )
+        CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (z_top, CRM)' )
+        CALL ltng_crmpr92z ( &
+                  ! Frequently used prognostics
+                    dx, dy, xland, ht, z, t,              &
+                  ! Scheme specific prognostics
+                    refl, reflthreshold, cellcount,       &
+                  ! Scheme specific namelist inputs
+                    cellcount_method,                     &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,         &
+                    ims, ime, jms, jme, kms, kme,         &
+                    ips, ipe, jps, jpe, kps, kpe,         &
+                  ! Mandatory output for all quantitative schemes
+                    total_flashrate                       &
+                  )
 !   CASE ( another_crm_option)
 !       CALL ...
 
@@ -305,7 +383,7 @@
         CALL wrf_debug( 100, ' lightning_driver: using option-default IC:CG method' )
         iccg_method_default: SELECT CASE(lightning_option)
 
-            CASE( ltng_crm_PR92w, ltng_cpm_PR92z ) iccg_method_default
+            CASE( ltng_crm_PR92w, ltng_crm_PR92z, ltng_cpm_PR92z ) iccg_method_default
                 CALL iccg_boccippio( &
                             xlat, xlon,                                &
                             iccg_prescribed_num, iccg_prescribed_den,  &
@@ -371,8 +449,24 @@
 
     ! Price and Rind, 1993
     CASE( 3 ) iccg_select
-        CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio')
-        CALL iccg_pr93( &
+        iccg_pr93_select: SELECT CASE(lightning_option)
+        CASE( ltng_crm_PR92w, ltng_crm_PR92z ) iccg_pr93_select
+            CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio (CRM)')
+            CALL iccg_crm_pr93( &
+                    refl, reflthreshold, t, z,                 &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,              &
+                    ims, ime, jms, jme, kms, kme,              &
+                    ips, ipe, jps, jpe, kps, kpe,              &
+                  ! Input
+                    total_flashrate,                           &
+                  ! Output
+                    ic_flashrate, cg_flashrate                 &
+                )
+
+        CASE DEFAULT iccg_pr93_select
+            CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio (CPM)')
+            CALL iccg_pr93( &
                     ktop_deep, cldtop_adjustment, t_phy, z,    &
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,              &
@@ -383,6 +477,7 @@
                   ! Output
                     ic_flashrate, cg_flashrate                 &
                 )
+        END SELECT iccg_pr93_select
 
     ! Invalid IC:CG method
     CASE DEFAULT iccg_select
@@ -393,7 +488,7 @@
 
 !-----------------------------------------------------------------
 
- CALL wrf_debug( 200, ' lightning_driver: converting flash rate to total')
+ CALL wrf_debug( 200, ' lightning_driver: converting flash rates to flash counts')
 
  ic_flashrate(its:ite,jts:jte) = ic_flashrate(its:ite,jts:jte) * flashrate_factor
  cg_flashrate(its:ite,jts:jte) = cg_flashrate(its:ite,jts:jte) * flashrate_factor
@@ -406,5 +501,70 @@
  CALL wrf_debug ( 100, ' lightning_driver: returning from')
 
  END SUBROUTINE lightning_driver
+
+
+!**********************************************************************
+!
+! SUBROUTINE countCells
+!
+! For counting number of cells where reflectivity exceeds a certain
+! threshold. Typically used by CRM schemes to redistribute lightning
+! within convective cores.
+!
+! Departure from original implementation:
+! Output includes domain-wide cellcounts if cellcount_method = 2
+!
+!**********************************************************************
+
+ SUBROUTINE countCells( &
+          ! Inputs
+            refl, reflthreshold, cellcount_method,     &
+          ! Order dependent args for domain, mem, and tile dims
+            ids, ide, jds, jde, kds, kde,              &
+            ims, ime, jms, jme, kms, kme,              &
+            ips, ipe, jps, jpe, kps, kpe,              &
+          ! Outputs
+            cellcount )
+
+ USE module_dm, only: wrf_dm_sum_real
+
+ IMPLICIT NONE
+!-----------------------------------------------------------------
+
+! Inputs
+ REAL,    DIMENSION( ims:ime,kms:kme,jms:jme ), INTENT(IN   ) :: refl
+ REAL,    INTENT(IN   ) :: reflthreshold
+ INTEGER, INTENT(IN   ) :: cellcount_method
+
+! Order dependent args for domain, mem, and tile dims
+ INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
+ INTEGER, INTENT(IN   )    ::       ims,ime, jms,jme, kms,kme
+ INTEGER, INTENT(IN   )    ::       ips,ipe, jps,jpe, kps,kpe
+
+
+! Outputs
+ REAL,    DIMENSION( kms:kme ), INTENT(  OUT) :: cellcount
+
+! Local vars
+ INTEGER :: i,k,j
+
+!-----------------------------------------------------------------
+
+ cellcount(kps:kpe) = 0.
+ DO j=jps,jpe
+   DO k=kps,kpe
+     DO i=ips,ipe
+       IF ( refl(i,k,j) .gt. reflthreshold ) THEN
+         cellcount(k) = cellcount(k) + 1
+       ENDIF
+     ENDDO
+   ENDDO
+ ENDDO
+
+ IF ( cellcount_method .eq. 2 ) THEN
+   cellcount(k) = wrf_dm_sum_real(cellcount(k))
+ ENDIF
+
+ END SUBROUTINE
 
  END MODULE module_lightning_driver
