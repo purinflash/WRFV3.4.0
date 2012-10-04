@@ -3460,7 +3460,7 @@ BENCH_START(moist_phys_end_tim)
             grid%z, moist,                                     &
           ! Scheme specific prognostics
             grid%ktop_deep, grid%refl_10cm,                    &
-          ! Mandatory namelist inputs
+          ! Flashrate namelist inputs
             config_flags%lightning_option,                     &
             config_flags%lightning_dt,                         &
             config_flags%lightning_start_seconds,              &
@@ -3472,8 +3472,6 @@ BENCH_START(moist_phys_end_tim)
           ! Scheme specific namelist inputs
             config_flags%cellcount_method,                     &
             config_flags%cldtop_adjustment,                    &
-            config_flags%ltng_temp_upper,                      &
-            config_flags%ltng_temp_lower,                      &
           ! Order dependent args for domain, mem, and tile dims
             ids, ide, jds, jde, kds, kde,         &
             ims, ime, jms, jme, kms, kme,         &

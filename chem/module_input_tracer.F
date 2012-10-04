@@ -29,13 +29,15 @@
 !            tr17_6 : stratosphere tracer decaying with e-folding time of 1 day
 !            tr17_7 : boundary layer tracer     
 !            tr17_8 : boundary layer tracer decaying with e-folding time of 1 day
-
+!
+! This version is slightly modified to accomodate TRACER_TEST3's addition -jw
+!
 
 
 MODULE module_input_tracer
 USE module_input_tracer_data
 #ifdef WRF_CHEM
-USE module_state_description, only:tracer_smoke,tracer_test1,tracer_test2,param_first_scalar,p_tr17_1,p_tr17_2,p_tr17_3,p_tr17_4,p_tr17_5,p_tr17_6,p_tr17_7,p_tr17_8
+USE module_state_description, only:tracer_smoke,tracer_test1,tracer_test2,tracer_test3,param_first_scalar,p_tr17_1,p_tr17_2,p_tr17_3,p_tr17_4,p_tr17_5,p_tr17_6,p_tr17_7,p_tr17_8
 #else
 USE module_state_description, only:tracer_test1,tracer_test2,param_first_scalar,p_tr17_1,p_tr17_2,p_tr17_3,p_tr17_4,p_tr17_5,p_tr17_6,p_tr17_7,p_tr17_8
 #endif
@@ -58,7 +60,7 @@ CONTAINS
       if     (tracer_opt == TRACER_TEST1)then
        chem(:,:,:,:)=.0
 #ifdef WRF_CHEM
-      else if(tracer_opt == TRACER_TEST2)then
+      else if(tracer_opt == TRACER_TEST2 .or. tracer_ == TRACER_TEST3)then
        chem(:,:,:,:)=.0
       else if(tracer_opt == TRACER_SMOKE)then
        chem(:,:,:,:)=.08
@@ -134,7 +136,7 @@ CONTAINS
           i_bdy_method = 2
         end if   
 #ifdef WRF_CHEM
-        if (tracer_opt == TRACER_TEST2 ) then
+        if (tracer_opt == TRACER_TEST2 .or. tracer_opt == TRACER_TEST3 ) then
           i_bdy_method = 2
         end if   
         if (tracer_opt == TRACER_SMOKE ) then
@@ -483,7 +485,11 @@ CONTAINS
 !-- every time step, every grid point, restore some tracer
 
 !(1)level 1 restore to 1.0
-    if(tracer_opt == TRACER_TEST1)then   
+    if(tracer_opt == TRACER_TEST1 &
+#ifdef WRF_CHEM
+        .or. tracer_opt == TRACER_TEST3 &
+#endif
+        )then
        tracer(its:ite,kts,jts:jte,p_tr17_3)     = 1.0
        tracer(its:ite,kts,jts:jte,p_tr17_4)     = 1.0
     endif

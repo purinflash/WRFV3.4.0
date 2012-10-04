@@ -847,7 +847,7 @@
               grid%mebio_acet,grid%mebio_mbo,grid%mebio_no,                                &
               current_month,                                                               &
          ! stuff for LNOx emissions
-             grid%ht, grid%ic_flashrate, grid%cg_flashrate, grid%refl_10cm                 &
+             grid%ht, grid%refl_10cm, grid%ic_flashrate, grid%cg_flashrate,                 &
          ! stuff for aircraft emissions
               emis_aircraft,                                                               &
          ! stuff for the GHG fluxes

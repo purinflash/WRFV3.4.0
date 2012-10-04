@@ -687,6 +687,8 @@ module_mp_morr_two_moment.o :\
 module_mp_wsm3.o :\
 		module_mp_wsm3_accel.F
 
+module_mp_radar.o :
+
 module_lightning_driver.o : \
         module_ltng_crmpr92.o module_ltng_cpmpr92z.o module_ltng_iccg.o
 

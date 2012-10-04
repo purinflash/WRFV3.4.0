@@ -28,7 +28,7 @@
  SUBROUTINE lightning_init ( &
                               itimestep, restart, dt, dx               &
                             ! Namelist control options
-                             ,cu_physics,mp_physics                    &
+                             ,cu_physics,mp_physics,do_radar_ref       &
                              ,lightning_option, lightning_dt           &
                              ,lightning_start_seconds                  &
                              ,iccg_prescribed_num, iccg_prescribed_den &
@@ -55,7 +55,7 @@
  INTEGER,  INTENT(IN)        :: itimestep
  LOGICAL,  INTENT(IN)        :: restart
  REAL,     INTENT(IN)        :: dt,dx
- INTEGER,  INTENT(IN)        :: cu_physics,mp_physics,lightning_option
+ INTEGER,  INTENT(IN)        :: cu_physics,mp_physics,do_radar_ref,lightning_option
  REAL,     INTENT(IN)        :: lightning_dt, lightning_start_seconds
  REAL,     INTENT(IN)        :: iccg_prescribed_num, iccg_prescribed_den
  INTEGER,  INTENT(INOUT)     :: cellcount_method
@@ -106,8 +106,8 @@
 
     ! Convective resolved/permitted
     CASE (ltng_crm_PR92w,ltng_crm_PR92z)
-        IF ( mp_physics .eq. 0 ) THEN
-          CALL wrf_error_fatal( ' lightning_init: Selected lightning option requires microphysics option for reflectivity' )
+        IF ( do_radar_ref .eq. 0 .or. mp_physics .eq. 0) THEN
+          CALL wrf_error_fatal( ' lightning_init: Selected lightning option requires microphysics and do_radar_ref=1' )
         ENDIF
 
         WRITE(message, * ) ' lightning_init: CRM lightning option used: ', lightning_option
@@ -145,7 +145,7 @@
 
 !-- Resolve auto-cellcount method option (cellcount_method=0)
  IF ( ( cellcount_method .eq. 0 ) .and. (lightning_option .eq. ltng_crm_PR92w )) THEN
-   IF ( (ipe-ips+1)*dx .gt. 1E4 ) THEN ! use patch only if path size > 10 km
+   IF ( (ite-its+1)*dx .gt. 1E4 ) THEN ! use patch only if path size > 10 km
      cellcount_method = 1
      WRITE(message, * ) ' lightning_init: setting auto cellcount_method to patch (cellcount_method=1'
    ELSE
@@ -161,6 +161,10 @@
 
  IF ( lnox_opt .ne. lnox_opt_none .and. lightning_option .eq. 0 ) THEN
    CALL wrf_error_fatal ( ' lightning_init: cannot set LNOx without lightning_option')
+ ENDIF
+
+ IF ( lnox_opt .eq. lnox_opt_decaria .and. ( do_radar_ref .eq. 0 .or. mp_physics .eq. 0 ) ) THEN
+   CALL wrf_error_fatal ( ' lightning_init: lnox_opt_decaria requires microphysics and do_radar_ref' )
  ENDIF
 
  IF (PRESENT( lnox_total )) lnox_total(:,:,:) = 0.
@@ -293,7 +297,8 @@
 !
 !-----------------------------------------------------------------
 
- IF ( lightning_option .eq. ltng_crm_PR92w ) THEN
+ IF ( lightning_option .eq. ltng_crm_PR92w .or. &
+      lightning_option .eq. ltng_crm_PR92z ) THEN
    CALL wrf_debug ( 100, ' lightning_driver: determining cloud extents for CRM' )
    CALL countCells( &
           ! Inputs
@@ -301,9 +306,11 @@
           ! Order dependent args for domain, mem, and tile dims
             ids, ide, jds, jde, kds, kde,              &
             ims, ime, jms, jme, kms, kme,              &
-            ips, ipe, jps, jpe, kps, kpe,              &
+            its, ite, jts, jte, kts, kte,              &
           ! Outputs
             cellcount )
+   WRITE(message, * ) ' lightning_driver: Max cell count = ', maxval(cellcount)
+   CALL wrf_debug ( 100, message )
  ENDIF
 
 !-----------------------------------------------------------------
@@ -317,15 +324,15 @@
 
         CALL ltng_crmpr92w ( &
                   ! Frequently used prognostics
-                    dx, dy, xland, ht, z, t,              &
+                    dx, dy, xland, ht, z, t_phy,          &
                   ! Scheme specific prognostics
-                    w, refl, reflthreshold, cellcount     &
+                    w, refl, reflthreshold, cellcount,    &
                   ! Scheme specific namelist inputs
                     cellcount_method,                     &
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,         &
                     ims, ime, jms, jme, kms, kme,         &
-                    ips, ipe, jps, jpe, kps, kpe,         &
+                    its, ite, jts, jte, kts, kte,         &
                   ! Mandatory output for all quantitative schemes
                     total_flashrate                       &
                   )
@@ -333,7 +340,7 @@
         CALL wrf_debug ( 100, ' lightning_driver: calling Price and Rind 1992 (z_top, CRM)' )
         CALL ltng_crmpr92z ( &
                   ! Frequently used prognostics
-                    dx, dy, xland, ht, z, t,              &
+                    dx, dy, xland, ht, z, t_phy,          &
                   ! Scheme specific prognostics
                     refl, reflthreshold, cellcount,       &
                   ! Scheme specific namelist inputs
@@ -341,7 +348,7 @@
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,         &
                     ims, ime, jms, jme, kms, kme,         &
-                    ips, ipe, jps, jpe, kps, kpe,         &
+                    its, ite, jts, jte, kts, kte,         &
                   ! Mandatory output for all quantitative schemes
                     total_flashrate                       &
                   )
@@ -453,11 +460,11 @@
         CASE( ltng_crm_PR92w, ltng_crm_PR92z ) iccg_pr93_select
             CALL wrf_debug ( 100, ' lightning_driver: using Price and Rind 1993 IC:CG ratio (CRM)')
             CALL iccg_crm_pr93( &
-                    refl, reflthreshold, t, z,                 &
+                    refl, reflthreshold, t_phy, z,             &
                   ! Order dependent args for domain, mem, and tile dims
                     ids, ide, jds, jde, kds, kde,              &
                     ims, ime, jms, jme, kms, kme,              &
-                    ips, ipe, jps, jpe, kps, kpe,              &
+                    its, ite, jts, jte, kts, kte,              &
                   ! Input
                     total_flashrate,                           &
                   ! Output
@@ -522,7 +529,7 @@
           ! Order dependent args for domain, mem, and tile dims
             ids, ide, jds, jde, kds, kde,              &
             ims, ime, jms, jme, kms, kme,              &
-            ips, ipe, jps, jpe, kps, kpe,              &
+            its, ite, jts, jte, kts, kte,              &
           ! Outputs
             cellcount )
 
@@ -539,7 +546,7 @@
 ! Order dependent args for domain, mem, and tile dims
  INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
  INTEGER, INTENT(IN   )    ::       ims,ime, jms,jme, kms,kme
- INTEGER, INTENT(IN   )    ::       ips,ipe, jps,jpe, kps,kpe
+ INTEGER, INTENT(IN   )    ::       its,ite, jts,jte, kts,kte
 
 
 ! Outputs
@@ -550,10 +557,10 @@
 
 !-----------------------------------------------------------------
 
- cellcount(kps:kpe) = 0.
- DO j=jps,jpe
-   DO k=kps,kpe
-     DO i=ips,ipe
+ cellcount(kts:kte) = 0.
+ DO j=jts,jte
+   DO k=kts,kte
+     DO i=its,ite
        IF ( refl(i,k,j) .gt. reflthreshold ) THEN
          cellcount(k) = cellcount(k) + 1
        ENDIF
@@ -562,7 +569,9 @@
  ENDDO
 
  IF ( cellcount_method .eq. 2 ) THEN
-   cellcount(k) = wrf_dm_sum_real(cellcount(k))
+   DO k=kts,kte
+     cellcount(k) = wrf_dm_sum_real(cellcount(k))
+   ENDDO
  ENDIF
 
  END SUBROUTINE

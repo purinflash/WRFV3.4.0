@@ -128,7 +128,7 @@
    CASE(lnox_opt_decaria)
       CALL lightning_nox_decaria ( &
               ! Frequently used prognostics
-                dx, dy, xland, ht, t, rho, z, p,      &
+                dx, dy, xland, ht, t_phy, rho, z, p_phy,      &
                 ic_flashrate, cg_flashrate,           & ! flashes (#/s)
               ! Scheme specific prognostics
                 refl,                                 &
@@ -152,25 +152,39 @@
 
 
 !-----------------------------------------------------------------
+ lnox_add_select: SELECT CASE(lnox_opt)
+  
+   CASE(lnox_opt_ott)
 
- CALL wrf_debug( 200, ' lightning_nox_driver: adding tendency to NO and passive tracers')
+     CALL wrf_debug( 100, ' lightning_nox_driver: adding total tendency to NO and passive tracers')
+     WRITE(wrf_err_message, * )  'lightning_nox_driver: max lnox_total_tend = ', maxval(lnox_total_tend(its:ite,kts:kte,jts:jte))
+     CALL wrf_debug( 100, wrf_err_message)
 
- IF ( PRESENT(lnox_total) ) THEN
-   lnox_total(its:ite,kts:kte,jts:jte) = lnox_total(its:ite,kts:kte,jts:jte) + &
-                                             lnox_total_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   IF ( .not.lnox_passive ) THEN
-     c_no(its:ite,kts:kte,jts:jte) = c_no(its:ite,kts:kte,jts:jte) + &
-                                             lnox_total_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   ENDIF
- ELSE
-   lnox_ic(its:ite,kts:kte,jts:jte) = lnox_ic(its:ite,kts:kte,jts:jte) + lnox_ic_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   lnox_cg(its:ite,kts:kte,jts:jte) = lnox_cg(its:ite,kts:kte,jts:jte) + lnox_cg_tend(its:ite,kts:kte,jts:jte) * lightning_dt
-   IF ( .not.lnox_passive ) THEN
-     c_no(its:ite,kts:kte,jts:jte) = c_no(its:ite,kts:kte,jts:jte) + &
-                                      ( lnox_ic_tend(its:ite,kts:kte,jts:jte) + &
-                                        lnox_cg_tend(its:ite,kts:kte,jts:jte) ) * lightning_dt
-   ENDIF
- ENDIF
+     lnox_total(its:ite,kts:kte,jts:jte) = lnox_total(its:ite,kts:kte,jts:jte) + &
+                                               lnox_total_tend(its:ite,kts:kte,jts:jte) * lightning_dt
+     IF ( .not.lnox_passive ) THEN
+       c_no(its:ite,kts:kte,jts:jte) = c_no(its:ite,kts:kte,jts:jte) + &
+                                               lnox_total_tend(its:ite,kts:kte,jts:jte) * lightning_dt
+     ENDIF
+
+   CASE(lnox_opt_decaria)
+     CALL wrf_debug( 100, ' lightning_nox_driver: adding IC an& CG tendencies to NO and passive tracers')
+     WRITE(wrf_err_message, * )  'lightning_nox_driver: max lnox_ic/cg_tend = ', maxval(lnox_ic_tend(its:ite,kts:kte,jts:jte)), &
+                     maxval(lnox_cg_tend(its:ite,kts:kte,jts:jte))
+     CALL wrf_debug( 100, wrf_err_message)
+
+     lnox_ic(its:ite,kts:kte,jts:jte) = lnox_ic(its:ite,kts:kte,jts:jte) + lnox_ic_tend(its:ite,kts:kte,jts:jte) * lightning_dt
+     lnox_cg(its:ite,kts:kte,jts:jte) = lnox_cg(its:ite,kts:kte,jts:jte) + lnox_cg_tend(its:ite,kts:kte,jts:jte) * lightning_dt
+     IF ( .not.lnox_passive ) THEN
+       c_no(its:ite,kts:kte,jts:jte) = c_no(its:ite,kts:kte,jts:jte) + &
+                                        ( lnox_ic_tend(its:ite,kts:kte,jts:jte) + &
+                                          lnox_cg_tend(its:ite,kts:kte,jts:jte) ) * lightning_dt
+     ENDIF
+
+   CASE DEFAULT
+        WRITE(wrf_err_message, * ) ' lightning_nox_driver: The lightning nox option does not exist: lnox_opt = ', lnox_opt
+        CALL wrf_error_fatal ( wrf_err_message )
+ END SELECT lnox_add_select
 
  CALL wrf_debug( 100, ' lightning_nox_driver: finishing')
 

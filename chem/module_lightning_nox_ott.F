@@ -77,13 +77,6 @@
 ! Output
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(  OUT) :: lnox_total_tend
 
-! Local variables
- INTEGER :: i,k,j
- INTEGER :: v       ! vertical iterator in km
- REAL    :: total_NO, mass_of_air, dA
- REAL, DIMENSION( kts:kte ):: zkm     ! AGL height in km
- REAL, DIMENSION( vds:vde ):: NOperkm ! moles/km, number of flashes of each grid / km in z
-
 ! parameters
  REAL, PARAMETER :: subtrop_midlat = 35.
  REAL, PARAMETER :: trop_subtrop = 20.
@@ -100,6 +93,13 @@
        ott_trpcon(vde+1)  = (/ .002,.005,.006,.014,.027,.040,.050,.062,.086,.103,.116,.124,.127,.124,.076,.030,.008 /)
   REAL, DIMENSION(vds:vde), PARAMETER :: & ! tropical marine
        ott_trpmar(vde+1)  = (/ .006,.015,.029,.043,.054,.067,.066,.085,.096,.102,.105,.102,.082,.065,.045,.022,.005 /)
+
+! Local variables
+ INTEGER :: i,k,j
+ INTEGER :: v       ! vertical iterator in km
+ REAL    :: total_NO, mass_of_air, dA
+ REAL, DIMENSION( kts:kte ):: zkm     ! AGL height in km
+ REAL, DIMENSION( vds:vde ):: NOperkm ! moles/km, number of flashes of each grid / km in z
 
 !-----------------------------------------------------------------
 

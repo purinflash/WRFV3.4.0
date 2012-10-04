@@ -44,7 +44,7 @@
                           ! Order dependent args for domain, mem, and tile dims
                             ids, ide, jds, jde, kds, kde,         &
                             ims, ime, jms, jme, kms, kme,         &
-                            its, ite, jts, jte, kts, kte,         &
+                            ips, ipe, jps, jpe, kps, kpe,         &
                           ! outputs
                             lnox_ic_tend, lnox_cg_tend            & ! tendency (ppmv/s)
                           )
@@ -69,6 +69,8 @@
 
  REAL,    DIMENSION( ims:ime,          jms:jme ), INTENT(IN   ) :: xland, ht
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: t, rho, z, p
+ REAL,    DIMENSION( ims:ime,          jms:jme ), INTENT(IN   ) :: ic_flashrate  , cg_flashrate ! #/sec
+
 
 ! Scheme specific prognostics
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: refl
@@ -84,29 +86,29 @@
  INTEGER, INTENT(IN   )    ::       ips,ipe, jps,jpe, kps,kpe
 
 ! Mandatory outputs for all quantitative schemes
- REAL,    DIMENSION( ims:ime, jms:jme ), INTENT(  OUT) :: lnox_ic_tend,lnox_cg_tend
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(  OUT) :: lnox_ic_tend,lnox_cg_tend
 
 ! Local variables
  INTEGER :: i,k,j
- REAL :: ic_fr, cg_fr ! reconsolidated flashrates
+ INTEGER :: ktop,kbtm,kupper,klower
+ REAL :: ic_fr, cg_fr, delta ! reconsolidated flashrates
  REAL :: term2, B
  CHARACTER (LEN=250) :: message
- REAL, DIMENSION( ims:ime, jms:jme ) :: cellcount
+ REAL, DIMENSION( kps:kpe ) :: cellcount
  REAL, DIMENSION( kps:kpe ) :: z_average, t_average, p_average, rho_average, molesofair
  REAL, DIMENSION( kps:kpe ) :: fd, fd2, dz ! fd = distribution
 
- REAL, PARAMETER :: ref_threshold = 20.
+ REAL, PARAMETER :: refl_threshold = 20.
 
 !-----------------------------------------------------------------
 
- lnox_ic_tend (ips:ipe,jps:jpe ) = 0.
- lnox_cg_tend (ips:ipe,jps:jpe ) = 0.
+ lnox_ic_tend (ips:ipe,kps:kpe,jps:jpe ) = 0.
+ lnox_cg_tend (ips:ipe,kps:kpe,jps:jpe ) = 0.
 
-! Determine cloud extents. Previously also calculated in physics but
-! cellcount was not persistent
+! Determine cloud extents. Also calculated in physics but cellcount is not persistent
  CALL countCells( &
       ! Inputs
-        refl, ref_threshold, cellcount_method,     &
+        refl, refl_threshold, cellcount_method,     &
       ! Order dependent args for domain, mem, and tile dims
         ids, ide, jds, jde, kds, kde,              &
         ims, ime, jms, jme, kms, kme,              &
@@ -125,25 +127,30 @@
 !-----------------------------------------------------------------
 
 ! Average z, t, p, rho
- CALL horizontalAverage( z, ips, ipe, kps, kpe, jps, jpe, z_average )
- CALL horizontalAverage( t, ips, ipe, kps, kpe, jps, jpe, t_average )
-! CALL horizontalAverage( p, ips, ipe, kps, kpe, jps, jpe, p_average )
- CALL horizontalAverage( rho, ips, ipe, kps, kpe, jps, jpe, rho_average )
+ CALL horizontalAverage( z( ips:ipe,kps:kpe,jps:jpe ), ips, ipe, kps, kpe, jps, jpe, z_average )
+ CALL horizontalAverage( t( ips:ipe,kps:kpe,jps:jpe ), ips, ipe, kps, kpe, jps, jpe, t_average )
+ CALL horizontalAverage( rho( ips:ipe,kps:kpe,jps:jpe ), ips, ipe, kps, kpe, jps, jpe, rho_average )
 
  molesofair(kps:kpe) = rho_average(kps:kpe) * 1E3 * dx * dy / .02897 ! # moles per km in z
 
 ! term2 = 30 * 8.3145E6/dx/dy/28.96/100./100.
 
+ CALL  kfind ( cellcount, t_average,            &
+               ltng_temp_upper,ltng_temp_lower, cellcount_method, &
+                ips, ipe, jps, jpe, kps, kpe,              &
+              ! Outputs
+                ktop,kbtm,kupper,klower )
+
 ! Calculates IC distribution
  IF (( ic_fr .gt. 0 ) .and. (( ktop .gt. klower ) .and. (kbtm .lt. ktop) ) )THEN
-   call bellcurve(kbot,ktop,klower,z_average, kps,kpe, fd, dz)
+   call bellcurve(kbtm,ktop,klower,z_average, kps,kpe, fd, dz)
    if (ktop .gt. kupper) then
-     call bellcurve(kbot,ktop,kupper,z_average, kps,kpe, fd2, dz)
-     fd(kbot:ktop) = 0.5*( fd(kbot:ktop) + fd2(kbot:ktop) )
+     call bellcurve(kbtm,ktop,kupper,z_average, kps,kpe, fd2, dz)
+     fd(kbtm:ktop) = 0.5*( fd(kbtm:ktop) + fd2(kbtm:ktop) )
    endif
-!   B = N_IC/sum(f(kbot:ktop)*p_average(kbot:ktop))
+!   B = N_IC/sum(f(kbtm:ktop)*p_average(kbtm:ktop))
 
-   DO k=kbot,ktop
+   DO k=kbtm,ktop
      if ( cellcount(k) .gt. 0. ) THEN
 !       delta = term2*B*fd(k)*t_average(k)*ic_fr/cellcount(k)/dz(k)/100.
         !*  implementation note: 1) ic_fr * N_IC/cellcount gives moles of NO in the column
@@ -151,7 +158,9 @@
         !*                       3) Divide by moles of air gives mixing ratio
         !*                       4) Multiply by 1E6 gives ppmv
         delta = (ic_fr * N_IC / cellcount(k)) * fd(k) / (molesofair(k)*dz(k)) * 1E6
-        where(refl(ips:ipe,k,jps:jpe) .gt. ref_threshold )
+        WRITE(message, * ) ' lightning_driver: k, delta, cellcount, fd = ', k, delta, cellcount(k), fd(k)
+        CALL wrf_debug ( 100, message )
+        where(refl(ips:ipe,k,jps:jpe) .gt. refl_threshold )
           lnox_ic_tend(ips:ipe,k,jps:jpe) = delta
         endwhere
      ENDIF
@@ -161,21 +170,21 @@
 
 !-----------------------------------------------------------------
 ! Calculates CG distribution
- IF ((cg_fr .gt. 0 ) .and. (( ktop .gt. k_lower ) .and. (kbtm .lt. ktop) ) ) THEN
-   call bellcurve(kts,ktop,klower,z_average, kps,kpe, fd, dz)
-!   B = N_CG/(sum(fd(kts:ktop)*p_average(kts:ktop)))
+ IF ((cg_fr .gt. 0 ) .and. (( ktop .gt. klower ) .and. (kbtm .lt. ktop) ) ) THEN
+   call bellcurve(kps,ktop,klower,z_average, kps,kpe, fd, dz)
+!   B = N_CG/(sum(fd(kps:ktop)*p_average(kps:ktop)))
 
 !  delta = term2*B*fd(k)*t_average(k)*cg_fr/cellcount(kbtm)/dz(k)/100.
    delta = (cg_fr * N_CG / cellcount(kbtm)) * fd(k) / (molesofair(k)*dz(k)) * 1E6
    ! below cloud
-   !*  implementation note: previously, between kts & kbtm is practically excluded because of
+   !*  implementation note: previously, between kps & kbtm is practically excluded because of
    !*                       the test for refl > 20
    !*  implementation note: using "where" here would end up reevaluating refl(ips:ipe,kbtm,jps:jpe)
-   !*                       multiple times because of the kts,kbtm-1 loop.
+   !*                       multiple times because of the kps,kbtm-1 loop.
    do i=ips,ipe
      do j=jps,jpe
-       if ( refl(i,kbtm,j) .gt. ref_threshold ) THEN
-         lnox_cg_tend(i,kts:(kbtm-1),j) = delta
+       if ( refl(i,kbtm,j) .gt. refl_threshold ) THEN
+         lnox_cg_tend(i,kps:(kbtm-1),j) = delta
        ENDIF
      enddo
    enddo
@@ -184,7 +193,7 @@
    do k = kbtm,ktop
     !delta = term2*B*fd(k)*t_average(k)*cg_fr/cellcount(k)/dz(k)/100.
      delta = (cg_fr * N_CG / cellcount(k)) * fd(k) / (molesofair(k)*dz(k)) * 1E6
-     where( refl(ips:ipe,k,jps:jpe) ) .gt. ref_threshold )
+     where( refl(ips:ipe,k,jps:jpe) .gt. refl_threshold )
        lnox_cg_tend(ips:ipe,k,jps:jpe) = delta
      endwhere
    enddo
@@ -241,7 +250,7 @@
 
  ! Normalize
  cuml_f_dist = sum(f(k_min:k_max) * dz(k_min:k_max))
- f(k_min:k_max) = f(k_min:k_max)/cuml_f_dist
+ f(k_min:k_max) = f(k_min:k_max)*dz(k_min:k_max)/cuml_f_dist
 
  END SUBROUTINE bellcurve
 
@@ -255,18 +264,14 @@
 !************************************************************************
  SUBROUTINE kfind ( &
               ! Prognostics
-                refl, t,                              &
-              ! Settings
-                refl_threshold,                       &
+                cellcount, t,                         &
               ! Namelist settings
                 ltng_temp_upper,ltng_temp_lower,      &
                 cellcount_method,                     &
               ! Order dependent args for domain, mem, and tile dims
-                ids, ide, jds, jde, kds, kde,              &
-                ims, ime, jms, jme, kms, kme,              &
-                ips, ipe, jps, jpe, kps, kpe,              &
+                ips, ipe, jps, jpe, kps, kpe,          &
               ! Outputs
-                ktop,kbtm,kupper,klower
+                ktop,kbtm,kupper,klower               &
             )
 !-----------------------------------------------------------------
 ! Framework
@@ -274,27 +279,29 @@
 
 ! Model layer
  USE module_model_constants
+
+ USE module_dm, only: wrf_dm_max_real, wrf_dm_min_real, wrf_dm_sum_real
+
 !-----------------------------------------------------------------
 
 ! Prognostics
- REAL, DIMENSION( ims:ime , kms:kme , jms:jme ), INTENT(IN   ) :: t, refl
+ REAL, DIMENSION( kps:kpe ), INTENT(IN   ) :: cellcount
+ REAL, DIMENSION( kps:kpe ), INTENT(IN   ) :: t
 
 ! Namelist settings
  REAL,    INTENT(IN   )    ::       ltng_temp_lower, ltng_temp_upper
  INTEGER, INTENT(IN   )    ::       cellcount_method
 
 ! Order dependent args for domain, mem, and tile (patch) dims
- INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
- INTEGER, INTENT(IN   )    ::       ims,ime, jms,jme, kms,kme
  INTEGER, INTENT(IN   )    ::       ips,ipe, jps,jpe, kps,kpe
 
 ! Outputs
  INTEGER, INTENT(  OUT)    ::       ktop,kbtm,kupper,klower
 
 ! Local vars
+ CHARACTER (LEN=250) :: message
  REAL    :: ktop_r, kbtm_r, kupper_r, klower_r
- INTEGER :: k, k_tmin
- REAL    :: tmin
+ INTEGER :: k
 
 !-----------------------------------------------------------------
  ktop = kps
@@ -303,52 +310,47 @@
  klower = kps
 
  ! look for ktop
- k = kte
- DO WHILE (maxval(refl(ips:ipe,k,jps:jpe)) .lt. refl_threshold .and. k .gt. kts )
+ k = kpe
+ DO WHILE ( cellcount(k) .eq. 0 .and. k .gt. kps)
   k = k-1
  ENDDO
  ktop = k
 
  ! Look for kbtm
- k = kts
- DO WHILE( maxval(refl(ips:ipe,k,jps:jpe)) .lt. refl_threshold .and. k .lt. ktop )
+ k = kps
+ DO WHILE( cellcount(k) .eq. 0 .and. k .lt. ktop )
   k = k+1
  ENDDO
  kbtm = k
- if (kbtm .eq. kts) kbtm = kte
-
- ! Look for tropopause
- k_tmin = kts
- tmin = t(kts)
- DO k=kts+1,kte
-   IF ( minval(t(ips:ipe,k,jps:jpe)) .lt. tmin) THEN
-     tmin = t(k)
-     k_tmin = k
-   ENDIF
- ENDDO
+ if (kbtm .eq. kps) kbtm = kpe
 
  ! Look for kupper
- k = k_tmin
- DO WHILE ( minval(t(ips:ipe,k,jps:jpe)) .lt. ltng_temp_upper + 273.15 )
-   k = k - 1
+ k = kps
+ DO WHILE ( t(k) .gt. ltng_temp_lower + 273.15 .and. k .lt. kpe )
+   k = k + 1
+ ENDDO
+ klower = k
+
+ DO WHILE ( t(k) .gt. ltng_temp_upper + 273.15 .and. k .lt. kpe )
+   k = k + 1
  ENDDO
  kupper = k
 
- ! Look for klower
- DO WHILE( minval(t(ips:ipe,k,jps:jpe)) .lt. ltng_temp_lower + 273.15 )
-   k = k - 1
- ENDDO
- klower = k
+ WRITE(message, * ) ' lightning_driver: kbtm, ktop, klower, kupper = ', kbtm, ktop, klower, kupper
+ CALL wrf_debug ( 100, message )
  
  IF ( cellcount_method .eq. 2 ) THEN
-   kbot_r = real(kbot)
+   kbtm_r = real(kbtm)
    ktop_r = real(ktop)
    klower_r = real(klower)
    kupper_r = real(kupper)
-   kbot = nint(wrf_dm_min_real(kbot_r))
+   kbtm = nint(wrf_dm_min_real(kbtm_r))
    ktop = nint(wrf_dm_max_real(ktop_r))
-   klower = nint(wrf_dm_max_real(k_ower_r))
-   kuppwer = nint(wrf_dm_max_real(kupper_r))
+   klower = nint(wrf_dm_max_real(klower_r))
+   kupper = nint(wrf_dm_max_real(kupper_r))
+
+   WRITE(message, * ) ' lightning_driver: kbtm, ktop, klower, kupper = ', kbtm, ktop, klower, kupper
+   CALL wrf_debug ( 100, message )
  endif
 
  END SUBROUTINE kfind
@@ -361,6 +363,7 @@
  REAL, DIMENSION(ips:ipe,kps:kpe,jps:jpe), INTENT(IN) :: array3D
  INTEGER, INTENT(IN) :: ips,ipe,kps,kpe,jps,jpe
 
+ INTEGER :: k
  REAL, DIMENSION(kps:kpe), INTENT(OUT) :: array1D
 !-----------------------------------------------------------------
  DO k=kps,kpe

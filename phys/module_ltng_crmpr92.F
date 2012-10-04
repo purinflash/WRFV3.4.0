@@ -55,12 +55,12 @@
 
 ! Scheme specific prognostics
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: w
- REAL,    DIMENSION( ims:ime,          jms:jme ), INTENT(IN   ) :: refl
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: refl
  REAL,                                            INTENT(IN   ) :: reflthreshold
  REAL,    DIMENSION(          kms:kme          ), INTENT(IN   ) :: cellcount
 
 ! Scheme specific namelist inputs
- REAL,    INTENT(IN   )    ::       cellcount_method
+ INTEGER, INTENT(IN   )    ::       cellcount_method
 
 ! Order dependent args for domain, mem, and tile (patch) dims
  INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
@@ -144,13 +144,12 @@
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: z, t
 
 ! Scheme specific prognostics
- REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: w
- REAL,    DIMENSION( ims:ime,          jms:jme ), INTENT(IN   ) :: refl
+ REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ), INTENT(IN   ) :: refl
  REAL,                                            INTENT(IN   ) :: reflthreshold
  REAL,    DIMENSION(          kms:kme          ), INTENT(IN   ) :: cellcount
 
 ! Scheme specific namelist inputs
- REAL,    INTENT(IN   )    ::       cellcount_method
+ INTEGER, INTENT(IN   )    ::       cellcount_method
 
 ! Order dependent args for domain, mem, and tile (patch) dims
  INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
@@ -164,7 +163,7 @@
  REAL :: zmax            ! max w in patch or domain
  REAL :: total_fr,ave_fr ! cloud flash rate
  INTEGER :: i,k,j
- INTEGER :: k_maxcount
+ INTEGER :: k_maxcount, count
  REAL :: maxcount, mostlyLand
  CHARACTER (LEN=250) :: message
 
@@ -180,18 +179,28 @@
    k = k-1
  ENDDO
  zmax = 0.
- where( (refl(ips:ipe,k,jp:jpe) .gt. reflthreshold .and. t(ips:ipe,k,jps:jpe) .gt. 273.15) )
-   zmax = maxval( z(ips:ipe,k,jp:jpe) - ht(ips:ipe,jp:jpe) )
-                                    ! land                                      ! marine
-   mostlyLand = count(xland(ips:ipe,jp:jpe) .lt. 1.5) - count(xland(ips:ipe,jp:jpe) .gt. 1.5)
- ENDWHERE
+ mostlyland = 0.
+ count = 0
+ DO i=ips,ipe
+   DO j=jps,jpe
+     IF ( (refl(i,k,j) .gt. reflthreshold) .and. (t(i,k,j) .gt. 273.15) ) THEN
+       IF (z(i,k,j)-ht(i,j) .gt. zmax) THEN
+         zmax = z(i,k,j)-ht(i,j)
+       ENDIF
+       count = count + 1
+       mostlyland = mostlyland + xland(i,j)
+     ENDIF
+   ENDDO
+ ENDDO
+ mostlyland = mostlyland/count
+
  zmax = zmax * 1E3
 
  if ( cellcount_method .eq. 2 ) THEN
    zmax = wrf_dm_max_real(zmax)
  endif
 
- if ( mostlyLand .gt. 0. ) then
+ if ( mostlyLand .lt. 1.5 ) then
     total_fr = 3.44E-5 * (zmax**4.9) /60. ! PR 92 continental eq
  else
     total_fr = 6.57E-6 * (zmax**4.9) /60. ! Michalon 99 marine eq
@@ -285,7 +294,7 @@
             kfreeze = kfreeze - 1
         ENDDO
 
-        depth = ( z(i,kLNB(i,j),j) - z(i,kfreeze,j) ) * 1E-3
+        depth = ( z(i,ktop,j) - z(i,kfreeze,j) ) * 1E-3
         IF (depth .le. 0.) CONTINUE
         depth = max( dH_min, min( dH_max, depth ))
 

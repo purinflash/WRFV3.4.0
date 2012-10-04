@@ -809,6 +809,7 @@
    CALL lightning_init ( itimestep=grid%itimestep, restart=grid%restart, dt=grid%dt, dx=grid%dx   &
                     ! Namelist control options
                         ,cu_physics=config_flags%cu_physics,mp_physics=config_flags%mp_physics    &
+                        ,do_radar_ref=config_flags%do_radar_ref                                   &
                         ,lightning_option=config_flags%lightning_option                           &
                         ,lightning_dt=config_flags%lightning_dt                                   &
                         ,lightning_start_seconds=config_flags%lightning_start_seconds             &
