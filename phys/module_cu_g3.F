@@ -797,7 +797,7 @@ CONTAINS
        HKBO,aad,XHKB,QKB,QKBO,edt3,                                    &
        XMB,XPWAV,XPWEV,PWAV,PWEV,PWAVO,                                &
        PWEVO,BU,BUO,cap_max,xland1,                                    &
-       cap_max_increment,closure_n,cap_max3
+       cap_max_increment,closure_n,cap_max3,sig
      real,    dimension (its:ite,1:ens4) ::                                   &
         axx
      integer,    dimension (its:ite) ::                                &
@@ -807,7 +807,7 @@ CONTAINS
      integer                              ::                           &
        nall,iedt,nens,nens3,ki,I,K,KK,iresult
      real                                 ::                           &
-      day,dz,mbdt,mbdt_s,entr_rate,radius,entrd_rate,mentr_rate,mentrd_rate,  &
+      dx,day,dz,mbdt,mbdt_s,entr_rate,radius,entrd_rate,mentr_rate,mentrd_rate,  &
       zcutdown,edtmax,edtmin,depth_min,zkbmax,z_detr,zktop,            &
       massfld,dh,cap_maxs,trash,entr_rate3,mentr_rate3
 
@@ -841,6 +841,20 @@ CONTAINS
       entr_rate =.2/radius
       entr_rate3=.2/200.
 !
+! different entrainment/detrainment
+!
+      dx=25.*tscl_kf
+      entr_rate=1.e-4
+      radius=.2/entr_rate
+      if(radius/dx .gt. 0.5)then
+         radius=.5*dx
+         entr_rate=.2/radius
+      endif
+      do i=its,itf
+      sig(i)=(1.-radius/dx)**2
+      enddo
+
+!
 !--- entrainment of mass
 !
       mentrd_rate=0.
@@ -852,7 +866,7 @@ CONTAINS
       do k=kts,ktf
       do i=its,itf
         cupclw(i,k)=0.
-        cd(i,k)=0.01*entr_rate
+        cd(i,k)=1.*entr_rate
         cd3(i,k)=entr_rate3
         cdd(i,k)=0.
         zdo3(i,k)=0.
@@ -866,7 +880,7 @@ CONTAINS
 !    base mass flux
 !
       edtmax=1.
-      edtmin=.2
+      edtmin=.1
 !
 !--- minimum depth (m), clouds must have
 !
@@ -1042,8 +1056,8 @@ CONTAINS
       IF(ierr(I).eq.0.)THEN
         if(kstabm(i)-1.gt.kstabi(i))then
            do k=kstabi(i),kstabm(i)-1
-             cd(i,k)=cd(i,k-1)+.15*entr_rate
-             if(cd(i,k).gt.1.0*entr_rate)cd(i,k)=1.0*entr_rate
+             cd(i,k)=cd(i,k-1)+1.*entr_rate
+             if(cd(i,k).gt.10.0*entr_rate)cd(i,k)=10.0*entr_rate
            enddo
         ENDIF
       ENDIF
@@ -1186,16 +1200,16 @@ CONTAINS
            q,GAMMA_cup,zu,qes_cup,k22,q_cup,xl, &
            itf,jtf,ktf, &
            its,ite, jts,jte, kts,kte)
-      do k=kts,ktf
-      do i=its,itf
-         cupclw(i,k)=qrc(i,k)
-      enddo
-      enddo
       call cup_up_moisture('deep',ierr,zo_cup,qco,qrco,pwo,pwavo, &
            kbcon,ktop,cd,dbyo,mentr_rate,clw_all, &
            qo,GAMMAo_cup,zuo,qeso_cup,k22,qo_cup,xl,&
            itf,jtf,ktf, &
            its,ite, jts,jte, kts,kte)
+      do k=kts,ktf
+      do i=its,itf
+         cupclw(i,k)=qrco(i,k)
+      enddo
+      enddo
 !
 !--- calculate workfunctions for updrafts
 !
@@ -1846,7 +1860,7 @@ CONTAINS
            outq,outqc,zuo,sub_mas,pre,pwo_ens,xmb,ktop,      &
            j,'deep',maxens2,maxens,iens,ierr2,ierr3,         &
            pr_ens,maxens3,ensdim,massfln,                    &
-           APR_GR,APR_W,APR_MC,APR_ST,APR_AS,                &
+           sig,APR_GR,APR_W,APR_MC,APR_ST,APR_AS,                &
            APR_CAPMA,APR_CAPME,APR_CAPMI,closure_n,xland1,   &
            itf,jtf,ktf,                        &
            its,ite, jts,jte, kts,kte)
@@ -3861,7 +3875,7 @@ CONTAINS
               zu,sub_mas,pre,pw,xmb,ktop,                 &
               j,name,nx,nx2,iens,ierr2,ierr3,pr_ens,             &
               maxens3,ensdim,massfln,                            &
-              APR_GR,APR_W,APR_MC,APR_ST,APR_AS,                 &
+              sig,APR_GR,APR_W,APR_MC,APR_ST,APR_AS,                 &
               APR_CAPMA,APR_CAPME,APR_CAPMI,closure_n,xland1,    &
               itf,jtf,ktf, &
               its,ite, jts,jte, kts,kte)
@@ -3907,6 +3921,9 @@ CONTAINS
      real,    dimension (its:ite,kts:kte)                              &
         ,intent (in  )                   ::                           &
         zu
+     real,    dimension (its:ite)                                      &
+        ,intent (in   )                   ::                           &
+        sig
      real,    dimension (its:ite)                                      &
         ,intent (out  )                   ::                           &
         pre,xmb
@@ -4010,7 +4027,8 @@ CONTAINS
               ierr(i)=13
               xmb_ave(i)=0.
          endif
-         xmb(i)=max(.1*xmb_ave(i),xmb_ave(i)-tuning*xmb_std(i))
+         xmb(i)=sig(i)*xmb_ave(i)
+!        xmb(i)=max(.1*xmb_ave(i),xmb_ave(i)-tuning*xmb_std(i))
 ! --- Now use proper count of how many closures were actually
 !       used in cup_forcing_ens (including screening of some
 !       closures over water) to properly normalize xmb
