@@ -195,6 +195,7 @@
                           ! Scheme specific prognostics
                             ktop_deep,                            &
                             refl,                                 &
+                            current_time,                         &
                           ! Mandatory namelist inputs
                             lightning_option,                     &
                             lightning_dt,                         &
@@ -204,6 +205,8 @@
                             iccg_method,                          &
                             iccg_prescribed_num,                  &
                             iccg_prescribed_den,                  &
+                          ! IC:CG inputs
+                            iccg_in_num, iccg_in_den,             &
                           ! Scheme specific namelist inputs
                             cellcount_method,                     &
                             cldtop_adjustment,                    &
@@ -218,6 +221,7 @@
 !-----------------------------------------------------------------
 ! Framework
  USE module_state_description
+ USE module_utility
 
 ! Model layer
  USE module_model_constants
@@ -246,6 +250,7 @@
 ! Scheme specific prognostics
  INTEGER, DIMENSION( ims:ime,          jms:jme ),           INTENT(IN   ) :: ktop_deep     ! model LNB from cu_physics
  REAL,    DIMENSION( ims:ime, kms:kme, jms:jme ),           INTENT(IN   ) :: refl          ! reflectivity from mp_physics
+ TYPE(WRFU_Time),                                           INTENT(IN   ) :: current_time  ! For use of IC:CG input
 
 ! Mandatory namelist inputs
  INTEGER, INTENT(IN   )    ::       lightning_option
@@ -254,6 +259,7 @@
 ! IC:CG namelist settings
  INTEGER, INTENT(IN   )    ::       iccg_method
  REAL,    INTENT(IN   )    ::       iccg_prescribed_num, iccg_prescribed_den
+ REAL,    DIMENSION( ims:ime, jms:jme, 12), INTENT(IN   ) :: iccg_in_num, iccg_in_den
 
 ! Scheme specific namelist inputs
  INTEGER, INTENT(IN   )    ::       cellcount_method                    ! used in CRM
@@ -485,6 +491,21 @@
                     ic_flashrate, cg_flashrate                 &
                 )
         END SELECT iccg_pr93_select
+
+    CASE( 4 ) iccg_select
+        CALL wrf_debug ( 100, ' lightning_driver: using input IC:CG ratio from iccg_in_(num|den)' )
+        CALL iccg_input( &
+                    iccg_prescribed_num, iccg_prescribed_den,  &
+                    iccg_in_num, iccg_in_den, current_time,    &
+                  ! Order dependent args for domain, mem, and tile dims
+                    ids, ide, jds, jde, kds, kde,              &
+                    ims, ime, jms, jme, kms, kme,              &
+                    its, ite, jts, jte, kts, kte,              &
+                  ! Input
+                    total_flashrate,                           &
+                  ! Output
+                    ic_flashrate, cg_flashrate                 &
+                  )
 
     ! Invalid IC:CG method
     CASE DEFAULT iccg_select

@@ -3460,6 +3460,7 @@ BENCH_START(moist_phys_end_tim)
             grid%z, moist,                                     &
           ! Scheme specific prognostics
             grid%ktop_deep, grid%refl_10cm,                    &
+            CurrTime,                                          &
           ! Flashrate namelist inputs
             config_flags%lightning_option,                     &
             config_flags%lightning_dt,                         &
@@ -3469,6 +3470,8 @@ BENCH_START(moist_phys_end_tim)
             config_flags%iccg_method,                          &
             config_flags%iccg_prescribed_num,                  &
             config_flags%iccg_prescribed_den,                  &
+          ! IC:CG inputs
+            grid%iccg_in_num, grid%iccg_in_den,                &
           ! Scheme specific namelist inputs
             config_flags%cellcount_method,                     &
             config_flags%cldtop_adjustment,                    &

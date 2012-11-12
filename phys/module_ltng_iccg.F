@@ -250,4 +250,71 @@
  END SUBROUTINE iccg_pr93
 
 
+!**********************************************************************
+!
+! Gridded user inputs
+!
+! Gridded input of IC:CG from i0 or 16. Grids without input are denoted
+! by 0/0 and will use iccg_prescribed_(num|den) instead.
+!
+!**********************************************************************
+ SUBROUTINE iccg_input( &
+                            iccg_prescribed_num, iccg_prescribed_den,  &
+                            iccg_in_num, iccg_in_den, current_time,    &
+                          ! Order dependent args for domain, mem, and tile dims
+                            ids, ide, jds, jde, kds, kde,              &
+                            ims, ime, jms, jme, kms, kme,              &
+                            ips, ipe, jps, jpe, kps, kpe,              &
+                          ! Input
+                            total_flashrate,                           &
+                          ! Output
+                            ic_flashrate, cg_flashrate                 &
+                        )
+!-----------------------------------------------------------------
+ IMPLICIT NONE
+
+ USE module_utility
+!-----------------------------------------------------------------
+! Inputs
+ REAL,                                    INTENT(IN   ) :: iccg_prescribed_num, iccg_prescribed_den
+ REAL, DIMENSION( ims:ime, jms:jme, 12 ), INTENT(IN   ) :: iccg_in_num, iccg_in_den
+ TYPE(WRFU_Time),                         INTENT(IN   ) :: current_time  ! For use of IC:CG input
+
+! Order dependent args for domain, mem, and tile dims
+ INTEGER, INTENT(IN   )    ::       ids,ide, jds,jde, kds,kde
+ INTEGER, INTENT(IN   )    ::       ims,ime, jms,jme, kms,kme
+ INTEGER, INTENT(IN   )    ::       ips,ipe, jps,jpe, kps,kpe
+
+! Primary inputs and outpus
+ REAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN   ) :: total_flashrate   
+ REAL, DIMENSION( ims:ime, jms:jme ), INTENT(  OUT) :: ic_flashrate, cg_flashrate
+
+! Local variables
+ REAL :: prescribed_ratio, input_ratio
+ REAL :: current_month
+ INTEGER :: i,j
+!-----------------------------------------------------------------
+ prescribed_ratio = iccg_prescribed_num/iccg_prescribed_den
+ CALL WRFU_TimeGet(current_time,mm=current_month)
+
+ DO i=ips,ipe
+   DO j=jps,jpe
+     IF (iccg_in_den(i,j,current_month) .eq. 0) THEN
+       IF (iccg_in_num(i,j,current_month) .eq. 0) THEN
+        ! This is the 0/0 case where we use namelist prescribed ratio instead of input
+         cg_flashrate(i,j) = total_flashrate(i,j) * (1./(prescribed_ratio+1.))
+       ENDIF
+       cg_flashrate(i,j) = total_flashrate(i,j)
+     ELSE
+       input_ratio = iccg_input_num(i,j,current_month)/iccg_input_den(i,j,current_month)
+       cg_flashrate(i,j) = total_flashrate(i,j) * (1./(input_ratio+1.))
+     ENDIF
+   ENDDO
+ ENDDO
+
+ ic_flashrate(ips:ipe,jps:jpe) = total_flashrate(ips:ipe,jps:jpe) - cg_flashrate(ips:ipe,jps:jpe)
+
+ END SUBROUTINE iccg_input
+
+
  END MODULE module_ltng_iccg
