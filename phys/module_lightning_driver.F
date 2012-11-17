@@ -278,11 +278,8 @@
  REAL, DIMENSION( ims:ime, jms:jme ) :: total_flashrate
  CHARACTER (LEN=80) :: message
 
-#ifdef WRF_CHEM
  REAL, PARAMETER            :: reflthreshold = 20. ! reflectivity threshold for CRM schemes
  REAL, DIMENSION( kms:kme ) :: cellcount
-
-#endif
 
 !-----------------------------------------------------------------
 

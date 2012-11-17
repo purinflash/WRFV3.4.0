@@ -3460,7 +3460,7 @@ BENCH_START(moist_phys_end_tim)
             grid%z, moist,                                     &
           ! Scheme specific prognostics
             grid%ktop_deep, grid%refl_10cm,                    &
-            CurrTime,                                          &
+            domain_get_current_time( grid ),                   &
           ! Flashrate namelist inputs
             config_flags%lightning_option,                     &
             config_flags%lightning_dt,                         &

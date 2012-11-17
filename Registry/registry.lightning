@@ -9,7 +9,7 @@
 
 
 #
-# Mandatory outputs for all options producing flash counts/rates or intended to be used by LNOx param
+# Outputs for all options producing flash counts/rates or intended to be used by LNOx param
 #
 state    real    ic_flashcount     ij     misc    1   -   rh    "ic_flashcount"      "Accumulated IC flash count"     "#"
 state    real    ic_flashrate      ij     misc    1   -   r     "ic_flashrate"       "IC flash rate"                  "#/s"
@@ -18,13 +18,19 @@ state    real    cg_flashrate      ij     misc    1   -   r     "cg_flashrate"  
 
 
 #
-# Mandatory inputs for all options
+# Inputs for all options
 #
 rconfig  integer    lightning_option         namelist,physics   max_domains    0      h    "lightning_option"          "Lightning flash parameterization"       ""
 rconfig  real       lightning_dt             namelist,physics   max_domains    0.     -    "lightning_dt"              ""                                       "s"
 rconfig  real       lightning_start_seconds  namelist,physics   max_domains    0.     -    "lightning_start_seconds"   ""                                       "s"
 rconfig  real       flashrate_factor         namelist,physics   max_domains    1.0    h    "flashrate_factor"          "Tuning factor"                          ""
 
+
+#
+# Inputs
+#
+state    real  iccg_in_num    ijm      misc        1         Z      i0{16}r     "iccg_in_num"      "Monthly bulk IC:CG input numerator"      ""
+state    real  iccg_in_den    ijm      misc        1         Z      i0{16}r     "iccg_in_den"      "Monthly bulk IC:CG input denominator"    ""
 
 #
 # IC:CG ratio settings
@@ -54,13 +60,6 @@ rconfig  real       iccg_prescribed_den      namelist,physics   max_domains    1
 #
 rconfig  integer    cellcount_method         namelist,physics   max_domains    0       -   "cellcount_method"          "0=auto, 1=tile, 2=domain"                   ""
 rconfig  real       cldtop_adjustment        namelist,physics   max_domains    0.      -   "cldtop_adjustment"         "Adjustment to cloud top for ltng param"     "km"
-
-
-#
-# Inputs
-#
-state    real  iccg_in_num    ijm      misc        1         Z      i0{16}r     "iccg_in_num"      "Monthly bulk IC:CG input numerator"      ""
-state    real  iccg_in_den    ijm      misc        1         Z      i0{16}r     "iccg_in_den"      "Monthly bulk IC:CG input denominator"    ""
 
 
 #

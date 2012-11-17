@@ -271,9 +271,9 @@
                             ic_flashrate, cg_flashrate                 &
                         )
 !-----------------------------------------------------------------
- IMPLICIT NONE
-
  USE module_utility
+
+ IMPLICIT NONE
 !-----------------------------------------------------------------
 ! Inputs
  REAL,                                    INTENT(IN   ) :: iccg_prescribed_num, iccg_prescribed_den
@@ -291,7 +291,7 @@
 
 ! Local variables
  REAL :: prescribed_ratio, input_ratio
- REAL :: current_month
+ INTEGER :: current_month
  INTEGER :: i,j
 !-----------------------------------------------------------------
  prescribed_ratio = iccg_prescribed_num/iccg_prescribed_den
@@ -306,7 +306,7 @@
        ENDIF
        cg_flashrate(i,j) = total_flashrate(i,j)
      ELSE
-       input_ratio = iccg_input_num(i,j,current_month)/iccg_input_den(i,j,current_month)
+       input_ratio = iccg_in_num(i,j,current_month)/iccg_in_den(i,j,current_month)
        cg_flashrate(i,j) = total_flashrate(i,j) * (1./(input_ratio+1.))
      ENDIF
    ENDDO
